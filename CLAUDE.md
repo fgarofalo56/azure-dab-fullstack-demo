@@ -6,9 +6,9 @@
 
 ## Project Reference
 
-**Archon Project ID:** `[TO_BE_SET]`
+**Archon Project ID:** `e98fd171-04e1-442f-810a-8541aa639900`
 **Project Title:** Azure Data API Builder Full-Stack Demo
-**GitHub Repo:** https://github.com/<username>/azure-dab-fullstack-demo
+**GitHub Repo:** https://github.com/fgarofalo56/azure-dab-fullstack-demo
 **Repository Path:** E:\Repos\GitHub\MyDemoRepos\data-api-builder\azure-dab-fullstack-demo
 **Primary Stack:** TypeScript (React), .NET (DAB), Azure Bicep
 
