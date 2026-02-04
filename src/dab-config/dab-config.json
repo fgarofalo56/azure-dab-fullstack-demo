@@ -1,0 +1,121 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/latest/download/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('DATABASE_CONNECTION_STRING')"
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api",
+      "request-body-strict": true
+    },
+    "graphql": {
+      "enabled": true,
+      "path": "/graphql",
+      "allow-introspection": true
+    },
+    "host": {
+      "cors": {
+        "origins": ["*"],
+        "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "AzureAD",
+        "jwt": {
+          "audience": "@env('AZURE_AD_CLIENT_ID')",
+          "issuer": "https://login.microsoftonline.com/@env('AZURE_AD_TENANT_ID')/v2.0"
+        }
+      },
+      "mode": "production"
+    }
+  },
+  "entities": {
+    "Product": {
+      "source": {
+        "object": "Products",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Product",
+          "plural": "Products"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/Product"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "category": {
+          "cardinality": "one",
+          "target.entity": "Category",
+          "source.fields": ["Category"],
+          "target.fields": ["Name"]
+        }
+      }
+    },
+    "Category": {
+      "source": {
+        "object": "Categories",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Category",
+          "plural": "Categories"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/Category"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "products": {
+          "cardinality": "many",
+          "target.entity": "Product",
+          "source.fields": ["Name"],
+          "target.fields": ["Category"]
+        }
+      }
+    }
+  }
+}

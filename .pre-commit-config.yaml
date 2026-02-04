@@ -1,0 +1,53 @@
+# Pre-commit hooks for security and code quality
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: detect-private-key
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Secret detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+
+  # Commit message format
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # Bicep linting
+  - repo: local
+    hooks:
+      - id: bicep-build
+        name: Bicep Build Check
+        entry: az bicep build --file
+        language: system
+        files: \.bicep$
+        pass_filenames: true
+
+  # TypeScript/JavaScript
+  - repo: local
+    hooks:
+      - id: eslint
+        name: ESLint
+        entry: npx eslint --fix
+        language: system
+        files: \.(ts|tsx|js|jsx)$
+        pass_filenames: true
