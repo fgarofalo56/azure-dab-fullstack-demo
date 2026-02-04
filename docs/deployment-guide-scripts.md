@@ -10,10 +10,11 @@ This guide walks you through deploying the DOT Transportation Data Portal using 
 - [Quick Start](#quick-start)
 - [Step-by-Step Deployment](#step-by-step-deployment)
   - [1. Azure AD App Registrations](#1-azure-ad-app-registrations)
-  - [2. Deploy Infrastructure](#2-deploy-infrastructure)
+  - [2. Deploy Infrastructure (Phase 1)](#2-deploy-infrastructure-phase-1)
   - [3. Initialize Database](#3-initialize-database)
   - [4. Build and Push Containers](#4-build-and-push-containers)
-  - [5. Verify Deployment](#5-verify-deployment)
+  - [5. Deploy Containers (Phase 2)](#5-deploy-containers-phase-2)
+  - [6. Verify Deployment](#6-verify-deployment)
 - [Script Reference](#script-reference)
 - [Troubleshooting](#troubleshooting)
 
@@ -66,7 +67,7 @@ sqlcmd -?
 
 ## Quick Start
 
-For experienced users, here's the condensed deployment flow:
+For experienced users, here's the condensed deployment flow using **two-phase deployment**:
 
 ```powershell
 # 1. Clone and navigate
@@ -76,8 +77,8 @@ cd azure-dab-fullstack-demo
 # 2. Login to Azure
 az login
 
-# 3. Deploy infrastructure (follow prompts)
-./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus"
+# 3. Deploy infrastructure ONLY (Phase 1 - skips containers)
+./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -SkipContainers
 
 # 4. Initialize database
 cd src/database
@@ -91,10 +92,11 @@ cd ../../infrastructure/scripts
 ./build-push-dab.ps1 -AcrName "<acr-name>"
 ./build-push-frontend.ps1 -AcrName "<acr-name>"
 
-# 6. Restart ACI instances to pick up new images
-az container restart --name "<dab-aci-name>" --resource-group "rg-dot-demo"
-az container restart --name "<frontend-aci-name>" --resource-group "rg-dot-demo"
+# 6. Deploy containers (Phase 2 - after images are in ACR)
+./deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -ContainersOnly
 ```
+
+> **Why two phases?** Container instances require images to exist in ACR before deployment. The two-phase approach deploys infrastructure first, then containers after images are pushed.
 
 ---
 
@@ -154,9 +156,9 @@ Frontend Client ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ---
 
-### 2. Deploy Infrastructure
+### 2. Deploy Infrastructure (Phase 1)
 
-The `deploy.ps1` script creates all Azure resources using Bicep templates.
+The `deploy.ps1` script creates all Azure resources using Bicep templates. Use `-SkipContainers` to deploy infrastructure first without containers.
 
 #### 2.1 Navigate to Scripts Directory
 
@@ -164,14 +166,17 @@ The `deploy.ps1` script creates all Azure resources using Bicep templates.
 cd infrastructure/scripts
 ```
 
-#### 2.2 Run Deployment Script
+#### 2.2 Run Deployment Script (Infrastructure Only)
 
 ```powershell
 ./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
              -Location "eastus" `
              -BaseName "dotdemo" `
-             -Environment "dev"
+             -Environment "dev" `
+             -SkipContainers
 ```
+
+> **Important:** The `-SkipContainers` flag deploys only ACR, SQL Database, and Storage. This allows you to push container images to ACR before creating the container instances.
 
 #### 2.3 Script Prompts
 
@@ -183,9 +188,9 @@ The script will prompt for:
 | DAB Client ID | From step 1.1 | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | Frontend Client ID | From step 1.2 | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 
-#### 2.4 Deployment Output
+#### 2.4 Deployment Output (Phase 1)
 
-After successful deployment, the script outputs:
+After successful Phase 1 deployment, the script outputs:
 
 ```
 ============================================
@@ -197,8 +202,14 @@ ACR Name:          acrdotdemodev
 ACR Login Server:  acrdotdemodev.azurecr.io
 SQL Server:        dotdemo-dev-sql.database.windows.net
 Database:          dotdemo-dev-db
-DAB URL:           http://dotdemo-dev-dab.eastus.azurecontainer.io:5000
-Frontend URL:      http://dotdemo-dev-frontend.eastus.azurecontainer.io
+
+Containers:        Not deployed (use -ContainersOnly after pushing images)
+
+NEXT STEPS:
+1. Build and push the DAB container
+2. Build and push the frontend container
+3. Initialize the database schema
+4. Deploy containers with -ContainersOnly flag
 ```
 
 These values are also saved to `deployment-outputs.json`.
@@ -287,22 +298,49 @@ cd ../../infrastructure/scripts
 
 ---
 
-### 5. Verify Deployment
+### 5. Deploy Containers (Phase 2)
 
-#### 5.1 Restart Container Instances
+After pushing images to ACR, deploy the container instances.
 
-After pushing new images, restart the ACI instances:
+#### 5.1 Run Container Deployment
 
 ```powershell
-# Restart DAB
-az container restart --name "dotdemo-dev-dab" --resource-group "rg-dot-demo"
+./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
+             -Location "eastus" `
+             -ContainersOnly
+```
 
-# Restart Frontend
-az container restart --name "dotdemo-dev-frontend" --resource-group "rg-dot-demo"
+The script will prompt for the same credentials as Phase 1. After successful deployment:
 
-# Wait for containers to be running
+```
+============================================
+Deployment completed successfully!
+============================================
+
+DAB URL:           http://dotdemo-dev-dab.eastus.azurecontainer.io:5000
+Frontend URL:      http://dotdemo-dev-frontend.eastus.azurecontainer.io
+```
+
+#### 5.2 Verify Container Status
+
+```powershell
+# Check container states
 az container show --name "dotdemo-dev-dab" --resource-group "rg-dot-demo" --query "instanceView.state"
 az container show --name "dotdemo-dev-frontend" --resource-group "rg-dot-demo" --query "instanceView.state"
+```
+
+---
+
+### 6. Verify Deployment
+
+#### 6.1 Restart Containers (if updating images)
+
+If you need to update container images after initial deployment:
+
+```powershell
+# Push updated images first, then restart
+az container restart --name "dotdemo-dev-dab" --resource-group "rg-dot-demo"
+az container restart --name "dotdemo-dev-frontend" --resource-group "rg-dot-demo"
 ```
 
 #### 5.2 Check Container Logs
@@ -344,6 +382,19 @@ http://dotdemo-dev-frontend.eastus.azurecontainer.io
 | `-Location` | No | `eastus` | Azure region |
 | `-BaseName` | No | `dabdemo` | Base name for all resources |
 | `-Environment` | No | `dev` | Environment (dev, staging, prod) |
+| `-SkipContainers` | No | `false` | Deploy infrastructure only (Phase 1) |
+| `-ContainersOnly` | No | `false` | Deploy containers only (Phase 2) |
+
+**Deployment Phases:**
+
+```mermaid
+flowchart LR
+    A[Phase 1<br/>-SkipContainers] --> B[Push Images<br/>to ACR]
+    B --> C[Phase 2<br/>-ContainersOnly]
+
+    A --> |Creates| D[ACR<br/>SQL<br/>Storage]
+    C --> |Creates| E[ACI DAB<br/>ACI Frontend]
+```
 
 ### build-push-dab.ps1
 
@@ -420,6 +471,19 @@ ERROR: A network-related or instance-specific error occurred
 1. Verify your IP is allowed in SQL Server firewall
 2. Check SQL Server name is correct (include `.database.windows.net`)
 3. Verify username and password
+
+#### Image Not Accessible Error
+
+```
+ERROR: The image 'acr.azurecr.io/dab:latest' in container group is not accessible
+```
+
+**Cause:** Trying to deploy containers before images exist in ACR.
+
+**Solution:** Use two-phase deployment:
+1. Deploy with `-SkipContainers` first
+2. Build and push images to ACR
+3. Deploy with `-ContainersOnly`
 
 #### Container Won't Start
 

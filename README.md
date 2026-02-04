@@ -82,49 +82,57 @@ For detailed architecture documentation with Mermaid diagrams, see [docs/archite
 ```bash
 git clone https://github.com/<your-username>/azure-dab-fullstack-demo.git
 cd azure-dab-fullstack-demo
-cp .env.example .env
-# Edit .env with your values
 ```
 
-### 2. Deploy Azure Infrastructure
+### 2. Deploy Infrastructure (Phase 1)
 
 ```powershell
 # Login to Azure
 az login
 
-# Deploy all resources
-./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dlz-dab-dev-eastus2" -Location "eastus2"
+# Deploy infrastructure only (ACR, SQL, Storage - no containers yet)
+./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -SkipContainers
 ```
+
+The script will prompt for SQL password and Azure AD app registration IDs.
 
 ### 3. Initialize Database
 
 ```powershell
-# Navigate to database scripts
 cd src/database
 
-# Run initialization (creates schema + seeds data)
+# Run initialization (creates schema + seeds ~1,300 records)
 ./Initialize-Database.ps1 -ServerName "<your-sql-server>.database.windows.net" `
                           -DatabaseName "<your-database>" `
-                          -Username "<admin>" `
+                          -Username "sqladmin" `
                           -Password "<password>"
 ```
 
-### 4. Build and Push Containers
+### 4. Build and Push Container Images
 
 ```powershell
+cd infrastructure/scripts
+
 # Build and push DAB container
-./infrastructure/scripts/build-push-dab.ps1 -AcrName "<your-acr-name>"
+./build-push-dab.ps1 -AcrName "<your-acr-name>"
 
 # Build and push Frontend container
-./infrastructure/scripts/build-push-frontend.ps1 -AcrName "<your-acr-name>"
+./build-push-frontend.ps1 -AcrName "<your-acr-name>"
 ```
 
-### 5. Access the Application
+### 5. Deploy Containers (Phase 2)
+
+```powershell
+# Deploy container instances (after images are in ACR)
+./deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -ContainersOnly
+```
+
+### 6. Access the Application
 
 After deployment completes:
-- **Frontend Portal**: `https://<frontend-aci-fqdn>/`
-- **DAB REST API**: `https://<dab-aci-fqdn>:5000/api/`
-- **DAB GraphQL**: `https://<dab-aci-fqdn>:5000/graphql`
+- **Frontend Portal**: `http://<frontend-aci-fqdn>/`
+- **DAB REST API**: `http://<dab-aci-fqdn>:5000/api/`
+- **DAB GraphQL**: `http://<dab-aci-fqdn>:5000/graphql`
 
 ## API Endpoints
 
