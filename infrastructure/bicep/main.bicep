@@ -126,6 +126,7 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 2147483648 // 2 GB
+    requestedBackupStorageRedundancy: 'Local' // Use locally redundant backup (required for some subscriptions)
   }
 }
 
@@ -294,9 +295,7 @@ resource aciFrontend 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = 
       }
     ]
   }
-  dependsOn: [
-    aciDab
-  ]
+  // Note: Implicit dependency on aciDab via property reference (aciDab.properties.ipAddress.fqdn)
 }
 
 // ============================================================================
