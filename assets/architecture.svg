@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <linearGradient id="azureGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0078D4;stop-opacity:0.1"/>
+      <stop offset="100%" style="stop-color:#50E6FF;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1e3a5f"/>
+      <stop offset="100%" style="stop-color:#0078D4"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <rect x="0" y="0" width="1200" height="60" fill="url(#headerGrad)"/>
+  <text x="600" y="38" text-anchor="middle" fill="white" font-family="Segoe UI, Arial" font-size="24" font-weight="bold">
+    🇺🇸 DOT Transportation Data Portal - Architecture
+  </text>
+
+  <!-- Azure Cloud Region -->
+  <rect x="50" y="80" width="850" height="680" rx="15" fill="url(#azureGrad)" stroke="#0078D4" stroke-width="2"/>
+  <text x="70" y="110" fill="#0078D4" font-family="Segoe UI, Arial" font-size="18" font-weight="bold">
+    ☁️ Microsoft Azure
+  </text>
+
+  <!-- Resource Group -->
+  <rect x="70" y="130" width="810" height="610" rx="10" fill="white" stroke="#50E6FF" stroke-width="2" filter="url(#shadow)"/>
+  <text x="90" y="155" fill="#50E6FF" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">
+    📦 Resource Group: rg-dot-demo
+  </text>
+
+  <!-- User -->
+  <rect x="-30" y="300" width="140" height="100" rx="10" fill="white" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
+  <text x="40" y="340" text-anchor="middle" fill="#334155" font-family="Segoe UI, Arial" font-size="32">👤</text>
+  <text x="40" y="365" text-anchor="middle" fill="#334155" font-family="Segoe UI, Arial" font-size="12" font-weight="bold">User</text>
+  <text x="40" y="385" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">Web Browser</text>
+
+  <!-- Frontend Container -->
+  <rect x="160" y="180" width="200" height="140" rx="10" fill="#DEECF9" stroke="#0078D4" stroke-width="2" filter="url(#shadow)"/>
+  <image x="170" y="190" width="40" height="40" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230078D4'%3E%3Cpath d='M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-1 14H4V7h16v11z'/%3E%3C/svg%3E"/>
+  <text x="215" y="210" fill="#0078D4" font-family="Segoe UI, Arial" font-size="11">Container Instance</text>
+  <text x="260" y="250" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">React Frontend</text>
+  <text x="260" y="270" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">+ Nginx</text>
+  <text x="260" y="300" text-anchor="middle" fill="#0078D4" font-family="Segoe UI, Arial" font-size="11">Port 80 (HTTP)</text>
+
+  <!-- DAB Container -->
+  <rect x="430" y="180" width="200" height="140" rx="10" fill="#DFF6DD" stroke="#107C10" stroke-width="2" filter="url(#shadow)"/>
+  <image x="440" y="190" width="40" height="40" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23107C10'%3E%3Cpath d='M13 10V3L4 14h7v7l9-11h-7z'/%3E%3C/svg%3E"/>
+  <text x="485" y="210" fill="#107C10" font-family="Segoe UI, Arial" font-size="11">Container Instance</text>
+  <text x="530" y="250" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">Data API Builder</text>
+  <text x="530" y="270" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">REST + GraphQL</text>
+  <text x="530" y="300" text-anchor="middle" fill="#107C10" font-family="Segoe UI, Arial" font-size="11">Port 5000</text>
+
+  <!-- Azure SQL -->
+  <rect x="430" y="380" width="200" height="120" rx="10" fill="#E6F2FF" stroke="#0078D4" stroke-width="2" filter="url(#shadow)"/>
+  <text x="530" y="420" text-anchor="middle" fill="#0078D4" font-family="Segoe UI, Arial" font-size="28">💾</text>
+  <text x="530" y="450" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">Azure SQL Database</text>
+  <text x="530" y="475" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">DOT Transportation Data</text>
+
+  <!-- ACR -->
+  <rect x="160" y="380" width="200" height="120" rx="10" fill="#F3E8FF" stroke="#5C2D91" stroke-width="2" filter="url(#shadow)"/>
+  <text x="260" y="420" text-anchor="middle" fill="#5C2D91" font-family="Segoe UI, Arial" font-size="28">📦</text>
+  <text x="260" y="450" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">Container Registry</text>
+  <text x="260" y="475" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">dab:latest, frontend:latest</text>
+
+  <!-- Storage -->
+  <rect x="160" y="550" width="200" height="100" rx="10" fill="#E6F2FF" stroke="#0078D4" stroke-width="2" filter="url(#shadow)"/>
+  <text x="260" y="590" text-anchor="middle" fill="#0078D4" font-family="Segoe UI, Arial" font-size="28">📁</text>
+  <text x="260" y="615" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">Azure Storage</text>
+  <text x="260" y="635" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">File Share: dab-config</text>
+
+  <!-- Data Categories Box -->
+  <rect x="430" y="550" width="390" height="100" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
+  <text x="625" y="575" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">📊 DOT Data Categories</text>
+  <text x="530" y="600" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">🚂 Railroads (FRA)        🌉 Bridges (NBI)</text>
+  <text x="530" y="620" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">🚌 Transit (NTD)           🚗 Automobiles (FARS)</text>
+  <text x="740" y="640" text-anchor="middle" fill="#0078D4" font-family="Segoe UI, Arial" font-size="12" font-weight="bold">~1,300 Records</text>
+
+  <!-- Entra ID -->
+  <rect x="920" y="150" width="230" height="200" rx="10" fill="#FFF8E6" stroke="#FFB900" stroke-width="2" filter="url(#shadow)"/>
+  <text x="1035" y="185" text-anchor="middle" fill="#FFB900" font-family="Segoe UI, Arial" font-size="28">🔐</text>
+  <text x="1035" y="210" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">Microsoft Entra ID</text>
+  <text x="1035" y="240" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="12">App Registrations:</text>
+  <text x="1035" y="260" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• DOT-Demo-DAB-API</text>
+  <text x="1035" y="280" text-anchor="middle" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• DOT-Demo-Frontend</text>
+  <text x="1035" y="310" text-anchor="middle" fill="#FFB900" font-family="Segoe UI, Arial" font-size="11">JWT / OAuth 2.0</text>
+  <text x="1035" y="330" text-anchor="middle" fill="#FFB900" font-family="Segoe UI, Arial" font-size="11">OpenID Connect</text>
+
+  <!-- Legend -->
+  <rect x="920" y="400" width="230" height="250" rx="10" fill="white" stroke="#e2e8f0" stroke-width="2" filter="url(#shadow)"/>
+  <text x="1035" y="425" text-anchor="middle" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="14" font-weight="bold">📋 Legend</text>
+  <line x1="940" y1="445" x2="1000" y2="445" stroke="#1e3a5f" stroke-width="2"/>
+  <text x="1010" y="450" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">Data Flow</text>
+  <line x1="940" y1="470" x2="1000" y2="470" stroke="#FFB900" stroke-width="2" stroke-dasharray="5,5"/>
+  <text x="1010" y="475" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">Auth Flow</text>
+  <text x="940" y="505" fill="#64748b" font-family="Segoe UI, Arial" font-size="12" font-weight="bold">Technologies:</text>
+  <text x="940" y="525" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• React 18 + TypeScript</text>
+  <text x="940" y="545" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• Data API Builder</text>
+  <text x="940" y="565" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• Azure SQL Database</text>
+  <text x="940" y="585" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• Bicep IaC</text>
+  <text x="940" y="615" fill="#64748b" font-family="Segoe UI, Arial" font-size="12" font-weight="bold">API Protocols:</text>
+  <text x="940" y="635" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• REST (OData)</text>
+  <text x="940" y="655" fill="#64748b" font-family="Segoe UI, Arial" font-size="11">• GraphQL</text>
+
+  <!-- Arrows -->
+  <!-- User to Frontend -->
+  <path d="M 115 350 L 155 280" stroke="#1e3a5f" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="100" y="290" fill="#1e3a5f" font-family="Segoe UI, Arial" font-size="10">HTTPS</text>
+
+  <!-- Frontend to DAB -->
+  <path d="M 365 250 L 425 250" stroke="#107C10" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="375" y="240" fill="#107C10" font-family="Segoe UI, Arial" font-size="10">REST/GraphQL</text>
+
+  <!-- DAB to SQL -->
+  <path d="M 530 325 L 530 375" stroke="#0078D4" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="540" y="355" fill="#0078D4" font-family="Segoe UI, Arial" font-size="10">TDS</text>
+
+  <!-- Frontend to Entra (dashed) -->
+  <path d="M 365 210 L 915 200" stroke="#FFB900" stroke-width="1.5" fill="none" stroke-dasharray="5,5"/>
+
+  <!-- DAB to Entra (dashed) -->
+  <path d="M 635 220 L 915 240" stroke="#FFB900" stroke-width="1.5" fill="none" stroke-dasharray="5,5"/>
+  <text x="750" y="210" fill="#FFB900" font-family="Segoe UI, Arial" font-size="10">JWT Validation</text>
+
+  <!-- ACR to Containers (dashed) -->
+  <path d="M 260 375 L 260 325" stroke="#5C2D91" stroke-width="1" fill="none" stroke-dasharray="3,3"/>
+  <path d="M 360 420 L 430 300" stroke="#5C2D91" stroke-width="1" fill="none" stroke-dasharray="3,3"/>
+  <text x="300" y="360" fill="#5C2D91" font-family="Segoe UI, Arial" font-size="9">Pull Images</text>
+
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1e3a5f"/>
+    </marker>
+  </defs>
+</svg>

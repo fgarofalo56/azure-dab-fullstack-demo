@@ -31,49 +31,6 @@
     }
   },
   "entities": {
-    "Product": {
-      "source": {
-        "object": "Products",
-        "type": "table"
-      },
-      "graphql": {
-        "enabled": true,
-        "type": {
-          "singular": "Product",
-          "plural": "Products"
-        }
-      },
-      "rest": {
-        "enabled": true,
-        "path": "/Product"
-      },
-      "permissions": [
-        {
-          "role": "authenticated",
-          "actions": [
-            {
-              "action": "read"
-            }
-          ]
-        },
-        {
-          "role": "admin",
-          "actions": [
-            {
-              "action": "*"
-            }
-          ]
-        }
-      ],
-      "relationships": {
-        "category": {
-          "cardinality": "one",
-          "target.entity": "Category",
-          "source.fields": ["Category"],
-          "target.fields": ["Name"]
-        }
-      }
-    },
     "Category": {
       "source": {
         "object": "Categories",
@@ -109,13 +66,428 @@
         }
       ],
       "relationships": {
-        "products": {
+        "railroadAccidents": {
           "cardinality": "many",
-          "target.entity": "Product",
-          "source.fields": ["Name"],
-          "target.fields": ["Category"]
+          "target.entity": "RailroadAccident",
+          "source.fields": ["Id"],
+          "target.fields": ["CategoryId"]
+        },
+        "bridges": {
+          "cardinality": "many",
+          "target.entity": "Bridge",
+          "source.fields": ["Id"],
+          "target.fields": ["CategoryId"]
+        },
+        "transitAgencies": {
+          "cardinality": "many",
+          "target.entity": "TransitAgency",
+          "source.fields": ["Id"],
+          "target.fields": ["CategoryId"]
+        },
+        "vehicleFatalities": {
+          "cardinality": "many",
+          "target.entity": "VehicleFatality",
+          "source.fields": ["Id"],
+          "target.fields": ["CategoryId"]
         }
       }
+    },
+    "State": {
+      "source": {
+        "object": "States",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "State",
+          "plural": "States"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/State"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "railroadAccidents": {
+          "cardinality": "many",
+          "target.entity": "RailroadAccident",
+          "source.fields": ["Id"],
+          "target.fields": ["StateId"]
+        },
+        "bridges": {
+          "cardinality": "many",
+          "target.entity": "Bridge",
+          "source.fields": ["Id"],
+          "target.fields": ["StateId"]
+        },
+        "transitAgencies": {
+          "cardinality": "many",
+          "target.entity": "TransitAgency",
+          "source.fields": ["Id"],
+          "target.fields": ["StateId"]
+        },
+        "vehicleFatalities": {
+          "cardinality": "many",
+          "target.entity": "VehicleFatality",
+          "source.fields": ["Id"],
+          "target.fields": ["StateId"]
+        }
+      }
+    },
+    "RailroadAccident": {
+      "source": {
+        "object": "RailroadAccidents",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "RailroadAccident",
+          "plural": "RailroadAccidents"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/RailroadAccident"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "category": {
+          "cardinality": "one",
+          "target.entity": "Category",
+          "source.fields": ["CategoryId"],
+          "target.fields": ["Id"]
+        },
+        "state": {
+          "cardinality": "one",
+          "target.entity": "State",
+          "source.fields": ["StateId"],
+          "target.fields": ["Id"]
+        }
+      }
+    },
+    "Bridge": {
+      "source": {
+        "object": "Bridges",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "Bridge",
+          "plural": "Bridges"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/Bridge"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "category": {
+          "cardinality": "one",
+          "target.entity": "Category",
+          "source.fields": ["CategoryId"],
+          "target.fields": ["Id"]
+        },
+        "state": {
+          "cardinality": "one",
+          "target.entity": "State",
+          "source.fields": ["StateId"],
+          "target.fields": ["Id"]
+        }
+      }
+    },
+    "TransitAgency": {
+      "source": {
+        "object": "TransitAgencies",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "TransitAgency",
+          "plural": "TransitAgencies"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/TransitAgency"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "category": {
+          "cardinality": "one",
+          "target.entity": "Category",
+          "source.fields": ["CategoryId"],
+          "target.fields": ["Id"]
+        },
+        "state": {
+          "cardinality": "one",
+          "target.entity": "State",
+          "source.fields": ["StateId"],
+          "target.fields": ["Id"]
+        }
+      }
+    },
+    "VehicleFatality": {
+      "source": {
+        "object": "VehicleFatalities",
+        "type": "table"
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "VehicleFatality",
+          "plural": "VehicleFatalities"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/VehicleFatality"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        },
+        {
+          "role": "admin",
+          "actions": [
+            {
+              "action": "*"
+            }
+          ]
+        }
+      ],
+      "relationships": {
+        "category": {
+          "cardinality": "one",
+          "target.entity": "Category",
+          "source.fields": ["CategoryId"],
+          "target.fields": ["Id"]
+        },
+        "state": {
+          "cardinality": "one",
+          "target.entity": "State",
+          "source.fields": ["StateId"],
+          "target.fields": ["Id"]
+        }
+      }
+    },
+    "CategorySummary": {
+      "source": {
+        "object": "vw_CategorySummary",
+        "type": "view",
+        "key-fields": ["CategoryId"]
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "CategorySummary",
+          "plural": "CategorySummaries"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/CategorySummary"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "RailroadAccidentsByState": {
+      "source": {
+        "object": "vw_RailroadAccidentsByState",
+        "type": "view",
+        "key-fields": ["StateCode"]
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "RailroadAccidentsByState",
+          "plural": "RailroadAccidentsByStates"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/RailroadAccidentsByState"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "BridgeConditionByState": {
+      "source": {
+        "object": "vw_BridgeConditionByState",
+        "type": "view",
+        "key-fields": ["StateCode"]
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "BridgeConditionByState",
+          "plural": "BridgeConditionByStates"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/BridgeConditionByState"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "TransitSummaryByState": {
+      "source": {
+        "object": "vw_TransitSummaryByState",
+        "type": "view",
+        "key-fields": ["StateCode"]
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "TransitSummaryByState",
+          "plural": "TransitSummaryByStates"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/TransitSummaryByState"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "VehicleFatalitiesByState": {
+      "source": {
+        "object": "vw_VehicleFatalitiesByState",
+        "type": "view",
+        "key-fields": ["StateCode", "CrashYear"]
+      },
+      "graphql": {
+        "enabled": true,
+        "type": {
+          "singular": "VehicleFatalitiesByState",
+          "plural": "VehicleFatalitiesByStates"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/VehicleFatalitiesByState"
+      },
+      "permissions": [
+        {
+          "role": "authenticated",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
     }
   }
 }
