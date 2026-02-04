@@ -38,6 +38,9 @@ param frontendClientId string
 @description('Container image tag')
 param imageTag string = 'latest'
 
+@description('Skip container deployment (use for initial infrastructure setup before images are pushed)')
+param deployContainers bool = true
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -144,7 +147,7 @@ resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-05-01-previe
 // Azure Container Instance - Data API Builder
 // ============================================================================
 
-resource aciDab 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
+resource aciDab 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = if (deployContainers) {
   name: aciDabName
   location: location
   properties: {
@@ -233,7 +236,7 @@ resource aciDab 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
 // Azure Container Instance - Frontend
 // ============================================================================
 
-resource aciFrontend 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
+resource aciFrontend 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = if (deployContainers) {
   name: aciFrontendName
   location: location
   properties: {
@@ -307,7 +310,8 @@ output acrName string = acr.name
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDatabaseName string = sqlDatabase.name
 output storageAccountName string = storageAccount.name
-output dabFqdn string = aciDab.properties.ipAddress.fqdn
-output dabUrl string = 'http://${aciDab.properties.ipAddress.fqdn}:5000'
-output frontendFqdn string = aciFrontend.properties.ipAddress.fqdn
-output frontendUrl string = 'http://${aciFrontend.properties.ipAddress.fqdn}'
+output containersDeployed bool = deployContainers
+output dabFqdn string = deployContainers ? aciDab.properties.ipAddress.fqdn : ''
+output dabUrl string = deployContainers ? 'http://${aciDab.properties.ipAddress.fqdn}:5000' : ''
+output frontendFqdn string = deployContainers ? aciFrontend.properties.ipAddress.fqdn : ''
+output frontendUrl string = deployContainers ? 'http://${aciFrontend.properties.ipAddress.fqdn}' : ''

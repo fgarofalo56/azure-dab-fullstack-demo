@@ -6,6 +6,11 @@
     This script deploys all Azure resources required for the Data API Builder
     demo including ACR, ACI, Azure SQL, and storage accounts.
 
+    Supports two-phase deployment:
+    1. First run with -SkipContainers to deploy infrastructure only
+    2. Build and push container images to ACR
+    3. Run again with -ContainersOnly to deploy containers
+
 .PARAMETER ResourceGroupName
     Name of the Azure resource group to deploy to.
 
@@ -18,8 +23,17 @@
 .PARAMETER BaseName
     Base name for all resources. Default: dabdemo
 
+.PARAMETER SkipContainers
+    Skip deploying container instances (use for initial infrastructure setup)
+
+.PARAMETER ContainersOnly
+    Deploy only the container instances (use after images are pushed to ACR)
+
 .EXAMPLE
-    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus"
+    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus" -SkipContainers
+
+.EXAMPLE
+    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus" -ContainersOnly
 
 .EXAMPLE
     ./deploy.ps1 -ResourceGroupName "rg-dab-prod" -Environment "prod" -Location "westus2"
@@ -37,7 +51,13 @@ param(
     [string]$Environment = "dev",
 
     [Parameter(Mandatory = $false)]
-    [string]$BaseName = "dabdemo"
+    [string]$BaseName = "dabdemo",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipContainers,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ContainersOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -91,8 +111,21 @@ $frontendClientId = Read-Host "Enter Frontend App Client ID"
 # Get tenant ID
 $tenantId = $account.tenantId
 
+# Determine if we should deploy containers
+$deployContainers = -not $SkipContainers
+if ($ContainersOnly) {
+    $deployContainers = $true
+}
+
 # Deploy Bicep template
-Write-Step "Deploying Bicep template..."
+if ($SkipContainers) {
+    Write-Step "Deploying infrastructure only (containers will be skipped)..."
+} elseif ($ContainersOnly) {
+    Write-Step "Deploying containers only..."
+} else {
+    Write-Step "Deploying full infrastructure with containers..."
+}
+
 $deploymentName = "dab-demo-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
 $bicepPath = Join-Path $PSScriptRoot "..\bicep\main.bicep"
@@ -108,6 +141,7 @@ $deployment = az deployment group create `
         tenantId=$tenantId `
         dabClientId=$dabClientId `
         frontendClientId=$frontendClientId `
+        deployContainers=$deployContainers `
     --output json | ConvertFrom-Json
 
 if ($LASTEXITCODE -ne 0) {
@@ -132,26 +166,45 @@ Write-Host "`nAzure SQL:" -ForegroundColor Cyan
 Write-Host "   Server: $($outputs.sqlServerFqdn.value)"
 Write-Host "   Database: $($outputs.sqlDatabaseName.value)"
 
-Write-Host "`nData API Builder:" -ForegroundColor Cyan
-Write-Host "   URL: $($outputs.dabUrl.value)"
-Write-Host "   REST API: $($outputs.dabUrl.value)/api"
-Write-Host "   GraphQL: $($outputs.dabUrl.value)/graphql"
+if ($outputs.containersDeployed.value -eq $true) {
+    Write-Host "`nData API Builder:" -ForegroundColor Cyan
+    Write-Host "   URL: $($outputs.dabUrl.value)"
+    Write-Host "   REST API: $($outputs.dabUrl.value)/api"
+    Write-Host "   GraphQL: $($outputs.dabUrl.value)/graphql"
 
-Write-Host "`nFrontend:" -ForegroundColor Cyan
-Write-Host "   URL: $($outputs.frontendUrl.value)"
+    Write-Host "`nFrontend:" -ForegroundColor Cyan
+    Write-Host "   URL: $($outputs.frontendUrl.value)"
+} else {
+    Write-Host "`nContainers:" -ForegroundColor Yellow
+    Write-Host "   Not deployed (use -ContainersOnly after pushing images)"
+}
 
 Write-Host "`n========================================" -ForegroundColor Yellow
 Write-Host "  NEXT STEPS" -ForegroundColor Yellow
 Write-Host "========================================`n" -ForegroundColor Yellow
 
-Write-Host "1. Build and push the DAB container:"
-Write-Host "   ./build-push-dab.ps1 -AcrName $($outputs.acrName.value)`n"
+if ($SkipContainers -or $outputs.containersDeployed.value -eq $false) {
+    Write-Host "1. Build and push the DAB container:" -ForegroundColor White
+    Write-Host "   ./build-push-dab.ps1 -AcrName $($outputs.acrName.value)`n"
 
-Write-Host "2. Build and push the frontend container:"
-Write-Host "   ./build-push-frontend.ps1 -AcrName $($outputs.acrName.value)`n"
+    Write-Host "2. Build and push the frontend container:" -ForegroundColor White
+    Write-Host "   ./build-push-frontend.ps1 -AcrName $($outputs.acrName.value)`n"
 
-Write-Host "3. Initialize the database schema:"
-Write-Host "   See docs/setup-guide.md for SQL scripts`n"
+    Write-Host "3. Initialize the database schema:" -ForegroundColor White
+    Write-Host "   cd ../../src/database"
+    Write-Host "   ./Initialize-Database.ps1 -ServerName '$($outputs.sqlServerFqdn.value)' -DatabaseName '$($outputs.sqlDatabaseName.value)' -Username 'sqladmin' -Password '<your-password>'`n"
+
+    Write-Host "4. Deploy containers (after images are pushed):" -ForegroundColor White
+    Write-Host "   ./deploy.ps1 -ResourceGroupName $ResourceGroupName -Location $Location -ContainersOnly`n"
+} else {
+    Write-Host "1. Initialize the database schema (if not done):" -ForegroundColor White
+    Write-Host "   cd ../../src/database"
+    Write-Host "   ./Initialize-Database.ps1 -ServerName '$($outputs.sqlServerFqdn.value)' -DatabaseName '$($outputs.sqlDatabaseName.value)' -Username 'sqladmin' -Password '<your-password>'`n"
+
+    Write-Host "2. Access your application:" -ForegroundColor White
+    Write-Host "   Frontend: $($outputs.frontendUrl.value)"
+    Write-Host "   DAB API:  $($outputs.dabUrl.value)/api`n"
+}
 
 # Save deployment outputs for later use
 $outputPath = Join-Path $PSScriptRoot "..\..\deployment-outputs.json"
