@@ -29,7 +29,7 @@ interface CrudModalProps<T> {
   isLoading?: boolean;
 }
 
-export function CrudModal<T extends Record<string, unknown>>({
+export function CrudModal<T extends object>({
   isOpen,
   mode,
   title,
