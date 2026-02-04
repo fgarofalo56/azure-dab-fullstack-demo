@@ -41,6 +41,12 @@ param imageTag string = 'latest'
 @description('Skip container deployment (use for initial infrastructure setup before images are pushed)')
 param deployContainers bool = true
 
+@description('Log Analytics Workspace resource ID for diagnostic settings')
+param logAnalyticsWorkspaceId string = ''
+
+@description('Enable diagnostic settings for all resources')
+param enableDiagnostics bool = true
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -67,6 +73,27 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   properties: {
     adminUserEnabled: true
     publicNetworkAccess: 'Enabled'
+  }
+}
+
+// ACR Diagnostic Settings
+resource acrDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${acrName}-diagnostics'
+  scope: acr
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
   }
 }
 
@@ -98,6 +125,68 @@ resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-0
   name: fileShareName
   properties: {
     shareQuota: 5 // 5 GB
+  }
+}
+
+// Storage Account Diagnostic Settings
+resource storageAccountDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${storageAccountName}-diagnostics'
+  scope: storageAccount
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    metrics: [
+      {
+        category: 'Transaction'
+        enabled: true
+      }
+    ]
+  }
+}
+
+// Storage Blob Service Diagnostic Settings
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource blobDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${storageAccountName}-blob-diagnostics'
+  scope: blobService
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'Transaction'
+        enabled: true
+      }
+    ]
+  }
+}
+
+// Storage File Service Diagnostic Settings
+resource fileDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${storageAccountName}-file-diagnostics'
+  scope: fileService
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'Transaction'
+        enabled: true
+      }
+    ]
   }
 }
 
@@ -141,6 +230,100 @@ resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-05-01-previe
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
   }
+}
+
+// SQL Database Diagnostic Settings (audit and security logs)
+resource sqlDbDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${sqlDbName}-diagnostics'
+  scope: sqlDatabase
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'SQLInsights'
+        enabled: true
+      }
+      {
+        category: 'AutomaticTuning'
+        enabled: true
+      }
+      {
+        category: 'QueryStoreRuntimeStatistics'
+        enabled: true
+      }
+      {
+        category: 'QueryStoreWaitStatistics'
+        enabled: true
+      }
+      {
+        category: 'Errors'
+        enabled: true
+      }
+      {
+        category: 'DatabaseWaitStatistics'
+        enabled: true
+      }
+      {
+        category: 'Timeouts'
+        enabled: true
+      }
+      {
+        category: 'Blocks'
+        enabled: true
+      }
+      {
+        category: 'Deadlocks'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'Basic'
+        enabled: true
+      }
+      {
+        category: 'InstanceAndAppAdvanced'
+        enabled: true
+      }
+      {
+        category: 'WorkloadManagement'
+        enabled: true
+      }
+    ]
+  }
+}
+
+// SQL Server Auditing to Log Analytics
+resource sqlServerAudit 'Microsoft.Sql/servers/auditingSettings@2023-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  parent: sqlServer
+  name: 'default'
+  properties: {
+    state: 'Enabled'
+    isAzureMonitorTargetEnabled: true
+  }
+}
+
+// SQL Server master database diagnostic settings
+resource masterDb 'Microsoft.Sql/servers/databases@2023-05-01-preview' existing = {
+  parent: sqlServer
+  name: 'master'
+}
+
+resource sqlServerDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${sqlServerName}-master-diagnostics'
+  scope: masterDb
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'SQLSecurityAuditEvents'
+        enabled: true
+      }
+    ]
+  }
+  dependsOn: [
+    sqlServerAudit
+  ]
 }
 
 // ============================================================================
@@ -225,6 +408,13 @@ resource aciDab 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = if (d
         }
       }
     ]
+    diagnostics: enableDiagnostics && !empty(logAnalyticsWorkspaceId) ? {
+      logAnalytics: {
+        workspaceId: split(logAnalyticsWorkspaceId, '/')[8]
+        workspaceKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
+        logType: 'ContainerInstanceLogs'
+      }
+    } : null
   }
   dependsOn: [
     fileShare
@@ -297,6 +487,13 @@ resource aciFrontend 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = 
         password: acr.listCredentials().passwords[0].value
       }
     ]
+    diagnostics: enableDiagnostics && !empty(logAnalyticsWorkspaceId) ? {
+      logAnalytics: {
+        workspaceId: split(logAnalyticsWorkspaceId, '/')[8]
+        workspaceKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
+        logType: 'ContainerInstanceLogs'
+      }
+    } : null
   }
   // Note: Implicit dependency on aciDab via property reference (aciDab.properties.ipAddress.fqdn)
 }

@@ -29,6 +29,13 @@
 .PARAMETER ContainersOnly
     Deploy only the container instances (use after images are pushed to ACR)
 
+.PARAMETER LogAnalyticsWorkspaceId
+    Full resource ID of the Log Analytics workspace for diagnostic settings.
+    Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}
+
+.PARAMETER DisableDiagnostics
+    Disable diagnostic settings for all resources.
+
 .EXAMPLE
     ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus" -SkipContainers
 
@@ -37,6 +44,9 @@
 
 .EXAMPLE
     ./deploy.ps1 -ResourceGroupName "rg-dab-prod" -Environment "prod" -Location "westus2"
+
+.EXAMPLE
+    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -LogAnalyticsWorkspaceId "/subscriptions/.../workspaces/my-workspace"
 #>
 
 param(
@@ -57,7 +67,13 @@ param(
     [switch]$SkipContainers,
 
     [Parameter(Mandatory = $false)]
-    [switch]$ContainersOnly
+    [switch]$ContainersOnly,
+
+    [Parameter(Mandatory = $false)]
+    [string]$LogAnalyticsWorkspaceId = "/subscriptions/a60a2fdd-c133-4845-9beb-31f470bf3ef5/resourceGroups/rg-alz-dev-logging/providers/Microsoft.OperationalInsights/workspaces/alz-dev-dataObservability-logAnalyticsWorkspace",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$DisableDiagnostics
 )
 
 $ErrorActionPreference = "Stop"
@@ -117,6 +133,9 @@ if ($ContainersOnly) {
     $deployContainers = $true
 }
 
+# Determine if diagnostics should be enabled
+$enableDiagnostics = -not $DisableDiagnostics
+
 # Deploy Bicep template
 if ($SkipContainers) {
     Write-Step "Deploying infrastructure only (containers will be skipped)..."
@@ -124,6 +143,10 @@ if ($SkipContainers) {
     Write-Step "Deploying containers only..."
 } else {
     Write-Step "Deploying full infrastructure with containers..."
+}
+
+if ($enableDiagnostics -and $LogAnalyticsWorkspaceId) {
+    Write-Info "Diagnostics enabled - sending logs to Log Analytics workspace"
 }
 
 $deploymentName = "dab-demo-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
@@ -142,6 +165,8 @@ $deployment = az deployment group create `
         dabClientId=$dabClientId `
         frontendClientId=$frontendClientId `
         deployContainers=$deployContainers `
+        logAnalyticsWorkspaceId=$LogAnalyticsWorkspaceId `
+        enableDiagnostics=$enableDiagnostics `
     --output json | ConvertFrom-Json
 
 if ($LASTEXITCODE -ne 0) {
