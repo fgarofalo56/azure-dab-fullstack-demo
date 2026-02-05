@@ -6,43 +6,86 @@ A comprehensive demonstration of Azure Data API Builder (DAB) showcasing real-wo
 
 ## Architecture Overview
 
-![DOT Transportation Data Portal Architecture](assets/architecture.svg)
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#0078D4', 'primaryTextColor': '#fff', 'primaryBorderColor': '#005A9E', 'lineColor': '#333', 'secondaryColor': '#50E6FF', 'tertiaryColor': '#F3F2F1'}}}%%
+flowchart TB
+    subgraph Internet[" "]
+        User(["👤 User<br/>Web Browser"])
+    end
+
+    subgraph Azure["☁️ Microsoft Azure"]
+        subgraph FrontDoor["🌐 Azure Front Door"]
+            AFD["Global Load Balancer<br/>Managed SSL/TLS<br/>HTTPS Termination"]
+        end
+
+        subgraph RG["📦 Resource Group"]
+            subgraph Compute["Container Instances"]
+                Frontend["🖥️ React Frontend<br/>Nginx + React 18<br/>TypeScript + Tailwind"]
+                DAB["⚡ Data API Builder<br/>REST + GraphQL<br/>Auto-generated APIs"]
+            end
+
+            subgraph Data["Data Layer"]
+                SQL[("💾 Azure SQL<br/>DOT Transportation Data<br/>~1,300 Records")]
+                Storage["📁 Storage Account<br/>File Share<br/>DAB Configuration"]
+            end
+
+            subgraph Registry["Container Registry"]
+                ACR["📦 ACR<br/>dab:latest<br/>frontend:latest"]
+            end
+
+            subgraph Monitoring["Observability"]
+                LAW["📊 Log Analytics<br/>Diagnostics & Metrics<br/>KQL Queries"]
+            end
+        end
+
+        subgraph Identity["🔐 Microsoft Entra ID"]
+            EntraID["OAuth 2.0 / OIDC<br/>JWT Authentication<br/>Tenant-only Access"]
+        end
+    end
+
+    User -->|"HTTPS"| AFD
+    AFD -->|"Route: /"| Frontend
+    AFD -->|"Route: /api/*"| DAB
+    Frontend <-->|"REST/GraphQL"| DAB
+    DAB -->|"TDS"| SQL
+    DAB -.->|"Config Mount"| Storage
+    Frontend -.->|"Auth"| EntraID
+    DAB -.->|"JWT Validation"| EntraID
+    ACR -.->|"Pull Images"| Frontend
+    ACR -.->|"Pull Images"| DAB
+    Frontend -.->|"Logs"| LAW
+    DAB -.->|"Logs"| LAW
+    SQL -.->|"Diagnostics"| LAW
+
+    style Azure fill:#E6F2FF,stroke:#0078D4,stroke-width:2px
+    style RG fill:#F0FAFF,stroke:#50E6FF,stroke-width:2px
+    style FrontDoor fill:#FFE6E8,stroke:#E81123,stroke-width:2px
+    style Identity fill:#FFF8E6,stroke:#FFB900,stroke-width:2px
+    style Compute fill:#DFF6DD,stroke:#107C10,stroke-width:1px
+    style Data fill:#E6F2FF,stroke:#0078D4,stroke-width:1px
+    style Monitoring fill:#E6FFF5,stroke:#008272,stroke-width:1px
+    style Registry fill:#F3E8FF,stroke:#5C2D91,stroke-width:1px
+```
 
 <details>
-<summary>📋 Text-based Architecture Diagram</summary>
+<summary>📷 Static Architecture Diagram (SVG)</summary>
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Azure Resource Group                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐  │
-│  │   React      │───>│  Data API        │───>│  Azure SQL   │  │
-│  │   Frontend   │    │  Builder (DAB)   │    │  Database    │  │
-│  │   (ACI)      │    │  (ACI)           │    │              │  │
-│  │              │    │                  │    │  ┌────────┐  │  │
-│  │  DOT Portal  │    │  REST + GraphQL  │    │  │ DOT    │  │  │
-│  └──────────────┘    └──────────────────┘    │  │ Data   │  │  │
-│         │                    │               │  └────────┘  │  │
-│         │                    │               └──────────────┘  │
-│         ▼                    ▼                                  │
-│  ┌──────────────┐    ┌──────────────────┐                      │
-│  │   Azure      │    │   Azure File     │                      │
-│  │   Container  │    │   Share          │                      │
-│  │   Registry   │    │   (Persistent)   │                      │
-│  └──────────────┘    └──────────────────┘                      │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    Microsoft Entra ID                     │   │
-│  │                  (Tenant Authentication)                  │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+For platforms that don't render Mermaid, view the [architecture.svg](assets/architecture.svg) file, or open [architecture.excalidraw](assets/architecture.excalidraw) in [Excalidraw](https://excalidraw.com) for editing.
 
 </details>
 
-For detailed architecture documentation with Mermaid diagrams, see [docs/architecture.md](docs/architecture.md).
+| Component | Azure Service | Purpose |
+|-----------|--------------|---------|
+| 🌐 **Front Door** | Azure Front Door | Global HTTPS load balancer with managed SSL certificates |
+| 🖥️ **Frontend** | Container Instance | React 18 + TypeScript DOT-themed portal |
+| ⚡ **API** | Container Instance | Data API Builder with REST + GraphQL endpoints |
+| 💾 **Database** | Azure SQL Database | Transportation data with ~1,300 sample records |
+| 📦 **Registry** | Container Registry | Private container image storage |
+| 📁 **Storage** | Storage Account | Persistent DAB configuration file share |
+| 📊 **Monitoring** | Log Analytics | Centralized diagnostics and metrics |
+| 🔐 **Identity** | Microsoft Entra ID | OAuth 2.0 authentication with tenant restriction |
+
+For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
 ---
 

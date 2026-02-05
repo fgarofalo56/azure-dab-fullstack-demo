@@ -26,6 +26,7 @@ The DOT Transportation Data Portal is a full-stack web application that demonstr
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
+| **Edge** | Azure Front Door | Global HTTPS load balancer with managed SSL |
 | **Frontend** | React 18, TypeScript, Tailwind CSS | User interface |
 | **API** | Azure Data API Builder | REST & GraphQL APIs |
 | **Database** | Azure SQL Database | Data persistence |
@@ -46,6 +47,10 @@ flowchart TB
     end
 
     subgraph Azure["Azure Cloud"]
+        subgraph Edge["Edge Services"]
+            FrontDoor["🌐 Azure Front Door<br/>Global Load Balancer<br/>Managed SSL/TLS"]
+        end
+
         subgraph RG["Resource Group: rg-dot-demo"]
             subgraph Compute["Compute Layer"]
                 Frontend["🖥️ Frontend<br/>React + Nginx<br/>(ACI)"]
@@ -71,7 +76,9 @@ flowchart TB
         end
     end
 
-    User -->|HTTPS| Frontend
+    User -->|HTTPS| FrontDoor
+    FrontDoor -->|"Route: /"| Frontend
+    FrontDoor -->|"Route: /api/*"| DAB
     Frontend -->|REST/GraphQL| DAB
     DAB -->|SQL TDS| SQL
     DAB -.->|Config| Storage
@@ -83,8 +90,10 @@ flowchart TB
     DAB -.->|Logs| LAW
     SQL -.->|Diagnostics| LAW
     ACR -.->|Events| LAW
+    FrontDoor -.->|Access Logs| LAW
 
     style Azure fill:#e3f2fd
+    style Edge fill:#ffe6e8
     style RG fill:#bbdefb
     style Compute fill:#c8e6c9
     style Data fill:#fff3e0
@@ -481,6 +490,11 @@ graph TB
 ```mermaid
 graph TB
     subgraph Subscription["Azure Subscription"]
+        subgraph Edge["Edge Services"]
+            FrontDoor["🌐 Azure Front Door<br/>Standard SKU"]
+            FDEndpoint["Front Door Endpoint<br/>HTTPS with managed cert"]
+        end
+
         subgraph RG["Resource Group"]
             subgraph Network["Networking"]
                 PIP1["Public IP<br/>DAB"]
@@ -502,6 +516,10 @@ graph TB
                 SQLServer["SQL Server"]
                 SQLDB["SQL Database<br/>Basic DTU"]
             end
+
+            subgraph Observability["Monitoring"]
+                LAW["Log Analytics<br/>Workspace"]
+            end
         end
     end
 
@@ -510,6 +528,9 @@ graph TB
         AppReg2["App: Frontend"]
     end
 
+    FrontDoor --> FDEndpoint
+    FDEndpoint -->|"Route: /"| PIP2
+    FDEndpoint -->|"Route: /api/*"| PIP1
     PIP1 --> ACI1
     PIP2 --> ACI2
     ACI1 --> SQLDB
@@ -520,6 +541,10 @@ graph TB
     SQLServer --> SQLDB
     ACI1 -.-> AppReg1
     ACI2 -.-> AppReg2
+    ACI1 -.-> LAW
+    ACI2 -.-> LAW
+    SQLDB -.-> LAW
+    ACR -.-> LAW
 ```
 
 ### Container Architecture
@@ -664,24 +689,29 @@ ContainerInstanceLog_CL
 
 ## Scalability Considerations
 
-### Current Limitations (Demo)
+### Current Implementation (Demo)
 
-- Single ACI instances (no load balancing)
-- Basic SQL tier (5 DTUs)
-- No auto-scaling
-- No CDN for static assets
+| Feature | Current State | Notes |
+|---------|--------------|-------|
+| **Load Balancing** | ✅ Azure Front Door | Global HTTPS with managed SSL |
+| **Monitoring** | ✅ Log Analytics | Full diagnostics enabled |
+| **Container Hosting** | Single ACI instances | No auto-scaling |
+| **Database** | Basic SQL tier (5 DTUs) | Sufficient for demo |
+| **CDN** | Not implemented | Static assets served from ACI |
 
 ### Production Recommendations
+
+For production workloads, consider these enhancements:
 
 ```mermaid
 graph TB
     subgraph Production["Production Architecture"]
-        CDN["Azure CDN"]
-        FrontDoor["Azure Front Door"]
-        AKS["Azure Kubernetes Service"]
+        CDN["Azure CDN<br/>(Static Assets)"]
+        FrontDoor["Azure Front Door<br/>(Already Implemented ✅)"]
+        AKS["Azure Kubernetes Service<br/>(Replace ACI)"]
         SQLHA["SQL Database<br/>Premium/Hyperscale"]
-        Redis["Azure Redis Cache"]
-        AppInsights["Application Insights"]
+        Redis["Azure Redis Cache<br/>(API Caching)"]
+        AppInsights["Application Insights<br/>(APM)"]
     end
 
     CDN --> FrontDoor
@@ -690,6 +720,14 @@ graph TB
     AKS --> Redis
     AKS --> AppInsights
 ```
+
+| Enhancement | Purpose | When to Consider |
+|-------------|---------|------------------|
+| **AKS** | Auto-scaling, high availability | >100 concurrent users |
+| **Azure CDN** | Cache static assets globally | High traffic, global users |
+| **Redis Cache** | Reduce database load | Frequent repeated queries |
+| **SQL Premium** | Higher DTUs, geo-replication | Production SLAs required |
+| **Application Insights** | Deep APM, distributed tracing | Complex debugging needs |
 
 ---
 
