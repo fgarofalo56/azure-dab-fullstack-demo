@@ -294,6 +294,8 @@ resource sqlDbDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-prev
 }
 
 // SQL Server Auditing to Log Analytics
+// Note: When isAzureMonitorTargetEnabled is true, Azure automatically creates a diagnostic setting
+// for SQLSecurityAuditEvents on the master database. No separate diagnostic setting needed.
 resource sqlServerAudit 'Microsoft.Sql/servers/auditingSettings@2023-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
   parent: sqlServer
   name: 'default'
@@ -301,29 +303,6 @@ resource sqlServerAudit 'Microsoft.Sql/servers/auditingSettings@2023-05-01-previ
     state: 'Enabled'
     isAzureMonitorTargetEnabled: true
   }
-}
-
-// SQL Server master database diagnostic settings
-resource masterDb 'Microsoft.Sql/servers/databases@2023-05-01-preview' existing = {
-  parent: sqlServer
-  name: 'master'
-}
-
-resource sqlServerDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
-  name: '${sqlServerName}-master-diagnostics'
-  scope: masterDb
-  properties: {
-    workspaceId: logAnalyticsWorkspaceId
-    logs: [
-      {
-        category: 'SQLSecurityAuditEvents'
-        enabled: true
-      }
-    ]
-  }
-  dependsOn: [
-    sqlServerAudit
-  ]
 }
 
 // ============================================================================
