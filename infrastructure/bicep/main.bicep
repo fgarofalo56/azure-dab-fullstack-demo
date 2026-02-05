@@ -47,6 +47,9 @@ param logAnalyticsWorkspaceId string = ''
 @description('Enable diagnostic settings for all resources')
 param enableDiagnostics bool = true
 
+@description('Deploy Azure Front Door for HTTPS support')
+param deployFrontDoor bool = true
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -59,6 +62,8 @@ var storageAccountName = replace('st${baseName}${environment}', '-', '')
 var fileShareName = 'dab-data'
 var aciDabName = '${resourcePrefix}-dab'
 var aciFrontendName = '${resourcePrefix}-frontend'
+var frontDoorName = '${resourcePrefix}-fd'
+var frontDoorEndpointName = '${baseName}${environment}'
 
 // ============================================================================
 // Azure Container Registry
@@ -478,6 +483,173 @@ resource aciFrontend 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = 
 }
 
 // ============================================================================
+// Azure Front Door (HTTPS/SSL Termination)
+// ============================================================================
+
+resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  name: frontDoorName
+  location: 'global'
+  sku: {
+    name: 'Standard_AzureFrontDoor'
+  }
+  properties: {
+    originResponseTimeoutSeconds: 60
+  }
+}
+
+// Front Door Endpoint
+resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorProfile
+  name: frontDoorEndpointName
+  location: 'global'
+  properties: {
+    enabledState: 'Enabled'
+  }
+}
+
+// Origin Group - Frontend
+resource frontDoorOriginGroupFrontend 'Microsoft.Cdn/profiles/originGroups@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorProfile
+  name: 'frontend-origin-group'
+  properties: {
+    loadBalancingSettings: {
+      sampleSize: 4
+      successfulSamplesRequired: 3
+      additionalLatencyInMilliseconds: 50
+    }
+    healthProbeSettings: {
+      probePath: '/'
+      probeRequestType: 'HEAD'
+      probeProtocol: 'Http'
+      probeIntervalInSeconds: 100
+    }
+    sessionAffinityState: 'Disabled'
+  }
+}
+
+// Origin Group - DAB API
+resource frontDoorOriginGroupDab 'Microsoft.Cdn/profiles/originGroups@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorProfile
+  name: 'dab-origin-group'
+  properties: {
+    loadBalancingSettings: {
+      sampleSize: 4
+      successfulSamplesRequired: 3
+      additionalLatencyInMilliseconds: 50
+    }
+    healthProbeSettings: {
+      probePath: '/'
+      probeRequestType: 'HEAD'
+      probeProtocol: 'Http'
+      probeIntervalInSeconds: 100
+    }
+    sessionAffinityState: 'Disabled'
+  }
+}
+
+// Origin - Frontend Container
+resource frontDoorOriginFrontend 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorOriginGroupFrontend
+  name: 'frontend-origin'
+  properties: {
+    hostName: aciFrontend.properties.ipAddress.fqdn
+    httpPort: 80
+    httpsPort: 443
+    originHostHeader: aciFrontend.properties.ipAddress.fqdn
+    priority: 1
+    weight: 1000
+    enabledState: 'Enabled'
+  }
+}
+
+// Origin - DAB Container
+resource frontDoorOriginDab 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorOriginGroupDab
+  name: 'dab-origin'
+  properties: {
+    hostName: aciDab.properties.ipAddress.fqdn
+    httpPort: 5000
+    httpsPort: 443
+    originHostHeader: aciDab.properties.ipAddress.fqdn
+    priority: 1
+    weight: 1000
+    enabledState: 'Enabled'
+  }
+}
+
+// Route - Frontend (default route)
+resource frontDoorRouteFrontend 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorEndpoint
+  name: 'frontend-route'
+  properties: {
+    originGroup: {
+      id: frontDoorOriginGroupFrontend.id
+    }
+    supportedProtocols: [
+      'Http'
+      'Https'
+    ]
+    patternsToMatch: [
+      '/*'
+    ]
+    forwardingProtocol: 'HttpOnly'
+    linkToDefaultDomain: 'Enabled'
+    httpsRedirect: 'Enabled'
+  }
+  dependsOn: [
+    frontDoorOriginFrontend
+  ]
+}
+
+// Route - DAB API
+resource frontDoorRouteApi 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-05-01' = if (deployFrontDoor && deployContainers) {
+  parent: frontDoorEndpoint
+  name: 'api-route'
+  properties: {
+    originGroup: {
+      id: frontDoorOriginGroupDab.id
+    }
+    supportedProtocols: [
+      'Http'
+      'Https'
+    ]
+    patternsToMatch: [
+      '/api/*'
+      '/graphql'
+      '/graphql/*'
+    ]
+    forwardingProtocol: 'HttpOnly'
+    linkToDefaultDomain: 'Enabled'
+    httpsRedirect: 'Enabled'
+  }
+  dependsOn: [
+    frontDoorOriginDab
+    frontDoorRouteFrontend // API route must be created after frontend route
+  ]
+}
+
+// Front Door Diagnostic Settings
+resource frontDoorDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployFrontDoor && deployContainers && enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${frontDoorName}-diagnostics'
+  scope: frontDoorProfile
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+// ============================================================================
 // Outputs
 // ============================================================================
 
@@ -491,3 +663,8 @@ output dabFqdn string = deployContainers ? aciDab.properties.ipAddress.fqdn : ''
 output dabUrl string = deployContainers ? 'http://${aciDab.properties.ipAddress.fqdn}:5000' : ''
 output frontendFqdn string = deployContainers ? aciFrontend.properties.ipAddress.fqdn : ''
 output frontendUrl string = deployContainers ? 'http://${aciFrontend.properties.ipAddress.fqdn}' : ''
+output frontDoorDeployed bool = deployFrontDoor && deployContainers
+output frontDoorHostname string = (deployFrontDoor && deployContainers) ? frontDoorEndpoint.properties.hostName : ''
+output frontDoorUrl string = (deployFrontDoor && deployContainers) ? 'https://${frontDoorEndpoint.properties.hostName}' : ''
+output frontDoorApiUrl string = (deployFrontDoor && deployContainers) ? 'https://${frontDoorEndpoint.properties.hostName}/api' : ''
+output frontDoorGraphqlUrl string = (deployFrontDoor && deployContainers) ? 'https://${frontDoorEndpoint.properties.hostName}/graphql' : ''

@@ -73,7 +73,10 @@ param(
     [string]$LogAnalyticsWorkspaceId = "/subscriptions/a60a2fdd-c133-4845-9beb-31f470bf3ef5/resourceGroups/rg-alz-dev-logging/providers/Microsoft.OperationalInsights/workspaces/alz-dev-dataObservability-logAnalyticsWorkspace",
 
     [Parameter(Mandatory = $false)]
-    [switch]$DisableDiagnostics
+    [switch]$DisableDiagnostics,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipFrontDoor
 )
 
 $ErrorActionPreference = "Stop"
@@ -136,6 +139,9 @@ if ($ContainersOnly) {
 # Determine if diagnostics should be enabled
 $enableDiagnostics = -not $DisableDiagnostics
 
+# Determine if Front Door should be deployed
+$deployFrontDoor = -not $SkipFrontDoor
+
 # Deploy Bicep template
 if ($SkipContainers) {
     Write-Step "Deploying infrastructure only (containers will be skipped)..."
@@ -167,6 +173,7 @@ $deployment = az deployment group create `
         deployContainers=$deployContainers `
         logAnalyticsWorkspaceId=$LogAnalyticsWorkspaceId `
         enableDiagnostics=$enableDiagnostics `
+        deployFrontDoor=$deployFrontDoor `
     --output json | ConvertFrom-Json
 
 if ($LASTEXITCODE -ne 0) {
@@ -199,6 +206,16 @@ if ($outputs.containersDeployed.value -eq $true) {
 
     Write-Host "`nFrontend:" -ForegroundColor Cyan
     Write-Host "   URL: $($outputs.frontendUrl.value)"
+
+    if ($outputs.frontDoorDeployed.value -eq $true) {
+        Write-Host "`nAzure Front Door (HTTPS):" -ForegroundColor Green
+        Write-Host "   Hostname: $($outputs.frontDoorHostname.value)"
+        Write-Host "   Frontend URL: $($outputs.frontDoorUrl.value)" -ForegroundColor Green
+        Write-Host "   REST API: $($outputs.frontDoorApiUrl.value)"
+        Write-Host "   GraphQL: $($outputs.frontDoorGraphqlUrl.value)"
+        Write-Host ""
+        Write-Host "   ** Use the Front Door URL for HTTPS access with MSAL authentication **" -ForegroundColor Yellow
+    }
 } else {
     Write-Host "`nContainers:" -ForegroundColor Yellow
     Write-Host "   Not deployed (use -ContainersOnly after pushing images)"
@@ -226,9 +243,18 @@ if ($SkipContainers -or $outputs.containersDeployed.value -eq $false) {
     Write-Host "   cd ../../src/database"
     Write-Host "   ./Initialize-Database.ps1 -ServerName '$($outputs.sqlServerFqdn.value)' -DatabaseName '$($outputs.sqlDatabaseName.value)' -Username 'sqladmin' -Password '<your-password>'`n"
 
-    Write-Host "2. Access your application:" -ForegroundColor White
-    Write-Host "   Frontend: $($outputs.frontendUrl.value)"
-    Write-Host "   DAB API:  $($outputs.dabUrl.value)/api`n"
+    if ($outputs.frontDoorDeployed.value -eq $true) {
+        Write-Host "2. Update Azure AD App Registration redirect URIs:" -ForegroundColor White
+        Write-Host "   Add: $($outputs.frontDoorUrl.value)`n"
+
+        Write-Host "3. Access your application via Front Door (HTTPS):" -ForegroundColor White
+        Write-Host "   Frontend: $($outputs.frontDoorUrl.value)" -ForegroundColor Green
+        Write-Host "   DAB API:  $($outputs.frontDoorApiUrl.value)`n"
+    } else {
+        Write-Host "2. Access your application:" -ForegroundColor White
+        Write-Host "   Frontend: $($outputs.frontendUrl.value)"
+        Write-Host "   DAB API:  $($outputs.dabUrl.value)/api`n"
+    }
 }
 
 # Save deployment outputs for later use

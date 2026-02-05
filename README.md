@@ -63,8 +63,10 @@ For detailed architecture documentation with Mermaid diagrams, see [docs/archite
 - **Category-Based Navigation**: Browse data by Railroads, Bridges, Transit, or Automobiles
 - **State-Level Analysis**: All data linked to US states with regional groupings
 - **Azure Container Instances**: Serverless container hosting
+- **Azure Front Door**: Global HTTPS load balancer with managed SSL certificates
 - **Entra ID Authentication**: Secure tenant-only access control
 - **Infrastructure as Code**: Complete Bicep deployment scripts
+- **Comprehensive Monitoring**: Diagnostic logs and metrics sent to Log Analytics
 
 ## Prerequisites
 
@@ -129,10 +131,14 @@ cd infrastructure/scripts
 
 ### 6. Access the Application
 
-After deployment completes:
-- **Frontend Portal**: `http://<frontend-aci-fqdn>/`
-- **DAB REST API**: `http://<dab-aci-fqdn>:5000/api/`
-- **DAB GraphQL**: `http://<dab-aci-fqdn>:5000/graphql`
+After deployment completes, use the **Azure Front Door URL (HTTPS)** for production access:
+- **Frontend Portal**: `https://<front-door-hostname>/`
+- **DAB REST API**: `https://<front-door-hostname>/api/`
+- **DAB GraphQL**: `https://<front-door-hostname>/graphql`
+
+> **Note**: MSAL authentication requires HTTPS. Direct HTTP access to ACI containers is for development/debugging only.
+
+**Important**: After Front Door is deployed, update your Azure AD App Registration to add the Front Door URL as a redirect URI.
 
 ## API Endpoints
 
