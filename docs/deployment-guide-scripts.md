@@ -384,6 +384,13 @@ http://dotdemo-dev-frontend.eastus.azurecontainer.io
 | `-Environment` | No | `dev` | Environment (dev, staging, prod) |
 | `-SkipContainers` | No | `false` | Deploy infrastructure only (Phase 1) |
 | `-ContainersOnly` | No | `false` | Deploy containers only (Phase 2) |
+| `-LogAnalyticsWorkspaceId` | No | See below | Full resource ID of Log Analytics workspace |
+| `-DisableDiagnostics` | No | `false` | Disable diagnostic settings for all resources |
+
+**Default Log Analytics Workspace:**
+```
+/subscriptions/a60a2fdd-c133-4845-9beb-31f470bf3ef5/resourceGroups/rg-alz-dev-logging/providers/Microsoft.OperationalInsights/workspaces/alz-dev-dataObservability-logAnalyticsWorkspace
+```
 
 **Deployment Phases:**
 
@@ -499,13 +506,74 @@ az container show --name "<container-name>" --resource-group "<rg>" --query "con
 
 ---
 
+---
+
+## Diagnostics & Monitoring
+
+The deployment automatically configures diagnostic settings for all resources, sending logs and metrics to Log Analytics.
+
+### Resources with Diagnostics Enabled
+
+| Resource | Logs | Metrics |
+|----------|------|---------|
+| Azure Container Registry | All logs | All metrics |
+| Storage Account (Blob/File) | All logs | Transaction metrics |
+| Azure SQL Database | SQLInsights, Errors, Deadlocks, Timeouts, Blocks | Basic, Advanced |
+| Container Instances | Container logs | - |
+
+### Custom Log Analytics Workspace
+
+To use a different Log Analytics workspace:
+
+```powershell
+./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
+             -Location "eastus" `
+             -LogAnalyticsWorkspaceId "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}"
+```
+
+### Disable Diagnostics
+
+To deploy without diagnostic settings:
+
+```powershell
+./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
+             -Location "eastus" `
+             -DisableDiagnostics
+```
+
+### Query Logs
+
+Example KQL queries for the Log Analytics workspace:
+
+```kusto
+// Container Instance logs (DAB)
+ContainerInstanceLog_CL
+| where ContainerGroup_s contains "dab"
+| order by TimeGenerated desc
+| take 100
+
+// SQL Database errors
+AzureDiagnostics
+| where ResourceType == "DATABASES" and Category == "Errors"
+| project TimeGenerated, Resource, Message
+| order by TimeGenerated desc
+
+// Container Registry operations
+ContainerRegistryRepositoryEvents
+| order by TimeGenerated desc
+| take 50
+```
+
+---
+
 ## Next Steps
 
 After successful deployment:
 
 1. **Configure DNS** - Set up custom domain names
 2. **Enable HTTPS** - Add SSL certificates
-3. **Set up monitoring** - Configure Azure Monitor and alerts
-4. **Review security** - Audit CORS, authentication, and network rules
+3. **Review monitoring dashboards** - Check Log Analytics for container and SQL logs
+4. **Set up alerts** - Configure Azure Monitor alerts for errors and performance
+5. **Review security** - Audit CORS, authentication, and network rules
 
 See [Security Hardening Guide](./security-guide.md) for production recommendations.

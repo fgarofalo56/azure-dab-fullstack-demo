@@ -91,7 +91,7 @@ cd azure-dab-fullstack-demo
 az login
 
 # Deploy infrastructure only (ACR, SQL, Storage - no containers yet)
-./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -SkipContainers
+./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dlz-dab-dev-eastus2" -Location "eastus2" -SkipContainers
 ```
 
 The script will prompt for SQL password and Azure AD app registration IDs.
@@ -249,6 +249,32 @@ export DATABASE_CONNECTION_STRING="Server=localhost;Database=DOTDemo;..."
 dab start
 ```
 
+## Monitoring & Diagnostics
+
+All Azure resources are configured to send diagnostic logs and metrics to Log Analytics:
+
+| Resource | Logs Enabled |
+|----------|-------------|
+| **Azure Container Registry** | All logs, metrics |
+| **Storage Account** | Blob/File service logs, transaction metrics |
+| **Azure SQL Database** | Query insights, errors, deadlocks, timeouts |
+| **Container Instances** | Container logs via Log Analytics integration |
+
+To view logs, query the Log Analytics workspace in the Azure Portal or use KQL:
+
+```kusto
+// Container Instance logs
+ContainerInstanceLog_CL
+| where ContainerGroup_s contains "dab"
+| order by TimeGenerated desc
+| take 100
+
+// SQL Database errors
+AzureDiagnostics
+| where Category == "Errors"
+| order by TimeGenerated desc
+```
+
 ## Security
 
 - All traffic encrypted via HTTPS
@@ -256,6 +282,7 @@ dab start
 - Role-based permissions (authenticated: read-only, admin: full CRUD)
 - Container Registry is private
 - SQL credentials stored as deployment parameters (Key Vault recommended for production)
+- Comprehensive audit logging to Log Analytics
 
 ---
 

@@ -32,6 +32,7 @@ The DOT Transportation Data Portal is a full-stack web application that demonstr
 | **Authentication** | Microsoft Entra ID | Identity management |
 | **Hosting** | Azure Container Instances | Container runtime |
 | **Registry** | Azure Container Registry | Container images |
+| **Monitoring** | Log Analytics Workspace | Centralized logging & diagnostics |
 | **IaC** | Bicep | Infrastructure as Code |
 
 ---
@@ -61,6 +62,10 @@ flowchart TB
             end
         end
 
+        subgraph Monitoring["Monitoring"]
+            LAW["📊 Log Analytics<br/>Workspace<br/>Diagnostics"]
+        end
+
         subgraph Identity["Identity"]
             EntraID["🔐 Microsoft<br/>Entra ID<br/>Authentication"]
         end
@@ -74,12 +79,17 @@ flowchart TB
     DAB -.->|JWT Validation| EntraID
     ACR -.->|Pull Images| Frontend
     ACR -.->|Pull Images| DAB
+    Frontend -.->|Logs| LAW
+    DAB -.->|Logs| LAW
+    SQL -.->|Diagnostics| LAW
+    ACR -.->|Events| LAW
 
     style Azure fill:#e3f2fd
     style RG fill:#bbdefb
     style Compute fill:#c8e6c9
     style Data fill:#fff3e0
     style Identity fill:#f3e5f5
+    style Monitoring fill:#e8f5e9
 ```
 
 ---
@@ -537,6 +547,85 @@ graph TB
     DABConfig --> DABContainer
     DABEnv --> DABContainer
     StaticFiles --> NginxContainer
+```
+
+---
+
+## Monitoring Architecture
+
+All resources are configured with diagnostic settings that send logs and metrics to a centralized Log Analytics workspace.
+
+```mermaid
+flowchart TB
+    subgraph Resources["Azure Resources"]
+        ACR["Container Registry"]
+        ACI1["ACI: DAB"]
+        ACI2["ACI: Frontend"]
+        SQL["SQL Database"]
+        Storage["Storage Account"]
+    end
+
+    subgraph Monitoring["Monitoring"]
+        LAW["Log Analytics<br/>Workspace"]
+
+        subgraph Tables["Log Tables"]
+            ContainerLogs["ContainerInstanceLog_CL"]
+            AzureDiag["AzureDiagnostics"]
+            ContainerReg["ContainerRegistryRepositoryEvents"]
+            StorageLogs["StorageBlobLogs<br/>StorageFileLogs"]
+        end
+    end
+
+    subgraph Analysis["Analysis & Alerting"]
+        Workbooks["Azure Workbooks"]
+        Alerts["Azure Monitor Alerts"]
+        Dashboards["Dashboards"]
+    end
+
+    ACR -->|"Registry events"| ContainerReg
+    ACI1 -->|"Container logs"| ContainerLogs
+    ACI2 -->|"Container logs"| ContainerLogs
+    SQL -->|"Query insights, errors"| AzureDiag
+    Storage -->|"Access logs"| StorageLogs
+
+    ContainerLogs --> LAW
+    AzureDiag --> LAW
+    ContainerReg --> LAW
+    StorageLogs --> LAW
+
+    LAW --> Workbooks
+    LAW --> Alerts
+    LAW --> Dashboards
+```
+
+### Diagnostic Settings by Resource
+
+| Resource | Log Categories | Metrics |
+|----------|---------------|---------|
+| **Container Registry** | ContainerRegistryRepositoryEvents, ContainerRegistryLoginEvents | AllMetrics |
+| **SQL Database** | SQLInsights, AutomaticTuning, QueryStoreRuntimeStatistics, Errors, Deadlocks, Timeouts, Blocks | Basic, InstanceAndAppAdvanced |
+| **Storage Account** | StorageBlobLogs, StorageFileLogs | Transaction |
+| **Container Instances** | ContainerInstanceLogs (via Log Analytics integration) | - |
+
+### Key Queries
+
+```kusto
+// DAB container startup and errors
+ContainerInstanceLog_CL
+| where ContainerGroup_s contains "dab"
+| where Message contains "error" or Message contains "fail"
+| project TimeGenerated, Message
+
+// SQL slow queries
+AzureDiagnostics
+| where Category == "QueryStoreRuntimeStatistics"
+| where duration_d > 1000  // queries > 1 second
+| project TimeGenerated, query_hash_s, duration_d
+
+// Container restart events
+ContainerInstanceLog_CL
+| where Message contains "Starting"
+| summarize RestartCount = count() by bin(TimeGenerated, 1h), ContainerGroup_s
 ```
 
 ---
