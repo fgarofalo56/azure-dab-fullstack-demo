@@ -39,8 +39,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "Request/Response Flow: Browser \u2192 Front Door \u2192 Container Apps \u2192 SQL",
-      "fontSize": 16,
+      "text": "Request/Response Flow: Browser → Front Door → Container Apps → SQL",
+      "fontSize": 18,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -80,7 +80,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "End User\n\nBrowser Client\nHTTPS Request",
-      "fontSize": 11,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -91,8 +91,8 @@
       "id": "front-door-box",
       "x": 300,
       "y": 60,
-      "width": 200,
-      "height": 140,
+      "width": 300,
+      "height": 180,
       "angle": 0,
       "strokeColor": "#E81123",
       "backgroundColor": "#FFE6E8",
@@ -108,9 +108,9 @@
       "type": "text",
       "version": 1,
       "id": "front-door-label",
-      "x": 315,
+      "x": 160,
       "y": 120,
-      "width": 170,
+      "width": 270,
       "height": 70,
       "angle": 0,
       "strokeColor": "#E81123",
@@ -119,8 +119,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "Azure Front Door\n\nGlobal Load Balancer\nTLS Termination\nRoute: / \u2192 Frontend",
-      "fontSize": 11,
+      "text": "Azure Front Door\n\nGlobal Load Balancer\nTLS Termination\nRoute: / → Frontend",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -148,10 +148,10 @@
       "type": "text",
       "version": 1,
       "id": "frontend-label",
-      "x": 585,
-      "y": 120,
-      "width": 170,
-      "height": 70,
+      "x": 180,
+      "y": 435,
+      "width": 250,
+      "height": 130,
       "angle": 0,
       "strokeColor": "#0078D4",
       "backgroundColor": "transparent",
@@ -160,38 +160,10 @@
       "roughness": 0,
       "opacity": 100,
       "text": "React Frontend\n\nStatic SPA Assets\nMSAL.js Auth\nData Visualization",
-      "fontSize": 11,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-user-frontdoor",
-      "x": 235,
-      "y": 130,
-      "width": 60,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#424242",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 3,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          60,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "text",
@@ -208,39 +180,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2460 HTTPS",
-      "fontSize": 10,
+      "text": "① HTTPS",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-frontdoor-frontend",
-      "x": 505,
-      "y": 130,
-      "width": 60,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#E81123",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          60,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "text",
@@ -257,8 +201,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2461 Route /",
-      "fontSize": 10,
+      "text": "② Route /",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -275,7 +219,7 @@
       "strokeColor": "#107C10",
       "backgroundColor": "#F0FFF0",
       "fillStyle": "solid",
-      "strokeWidth": 2,
+      "strokeWidth": 4,
       "roughness": 0,
       "opacity": 100,
       "roundness": {
@@ -297,7 +241,7 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udcca API Data Request Flow (REST/GraphQL)",
+      "text": "📊 API Data Request Flow (REST/GraphQL)",
       "fontSize": 16,
       "fontFamily": 1,
       "textAlign": "left",
@@ -337,8 +281,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u269b\ufe0f React App\n\nfetch('/api/Bridge')\n\nHeaders:\n\u2022 Authorization: Bearer ...\n\u2022 Content-Type: application/json\n\nQuery Params:\n\u2022 $first=100\n\u2022 $orderby=Name",
-      "fontSize": 10,
+      "text": "⚛️ React App\n\nfetch('/api/Bridge')\n\nHeaders:\n• Authorization: Bearer ...\n• Content-Type: application/json\n\nQuery Params:\n• $first=100\n• $orderby=Name",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -377,8 +321,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83c\udf10 Front Door\n\nRoute Matching:\n\u2022 /api/* \u2192 DAB origin\n\u2022 /graphql \u2192 DAB origin\n\nForward:\n\u2022 HTTPS (port 443)\n\u2022 Preserve Host header",
-      "fontSize": 10,
+      "text": "🌐 Front Door\n\nRoute Matching:\n• /api/* → DAB origin\n• /graphql → DAB origin\n\nForward:\n• HTTPS (port 443)\n• Preserve Host header",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -417,8 +361,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u26a1 Data API Builder\n\nRequest Processing:\n1. JWT Token Validation\n2. Route \u2192 Entity mapping\n3. OData query parsing\n4. Permission check (role)\n5. SQL query generation\n\nPORT 5000 \u2192 SQL Database",
-      "fontSize": 10,
+      "text": "⚡ Data API Builder\n\nRequest Processing:\n1. JWT Token Validation\n2. Route → Entity mapping\n3. OData query parsing\n4. Permission check (role)\n5. SQL query generation\n\nPORT 5000 → SQL Database",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -457,8 +401,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udcbe Azure SQL\n\nGenerated Query:\nSELECT TOP 100\n  StructureNumber,\n  FacilityCarried,\n  YearBuilt\nFROM dbo.Bridges\nORDER BY Name\n\n~1,300 records available",
-      "fontSize": 10,
+      "text": "💾 Azure SQL\n\nGenerated Query:\nSELECT TOP 100\n  StructureNumber,\n  FacilityCarried,\n  YearBuilt\nFROM dbo.Bridges\nORDER BY Name\n\n~1,300 records available",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -497,123 +441,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udce6 JSON Response\n\n{\n  \"value\": [\n    {\n      \"Id\": 1,\n      \"StateId\": \"CA\",\n      \"YearBuilt\": 1985\n    }\n  ],\n  \"nextLink\": \"...\"\n}",
-      "fontSize": 10,
+      "text": "📦 JSON Response\n\n{\n  \"value\": [\n    {\n      \"Id\": 1,\n      \"StateId\": \"CA\",\n      \"YearBuilt\": 1985\n    }\n  ],\n  \"nextLink\": \"...\"\n}",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-fe-fd",
-      "x": 275,
-      "y": 375,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#107C10",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-fd-dab",
-      "x": 505,
-      "y": 375,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#107C10",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-dab-sql",
-      "x": 805,
-      "y": 375,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#107C10",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-sql-response",
-      "x": 1055,
-      "y": 375,
-      "width": 30,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#107C10",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          30,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "rectangle",
@@ -627,7 +459,7 @@
       "strokeColor": "#E81123",
       "backgroundColor": "#FFF0F0",
       "fillStyle": "solid",
-      "strokeWidth": 2,
+      "strokeWidth": 4,
       "roughness": 0,
       "opacity": 100,
       "roundness": {
@@ -649,7 +481,7 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udd17 GraphQL Query Flow",
+      "text": "🔗 GraphQL Query Flow",
       "fontSize": 16,
       "fontFamily": 1,
       "textAlign": "left",
@@ -690,7 +522,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "POST /graphql\n\nquery {\n  bridges(first: 10) {\n    items {\n      Id, StateId, YearBuilt\n    }\n  }\n}",
-      "fontSize": 10,
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -729,8 +561,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "DAB GraphQL Engine\n\n\u2022 Schema introspection\n\u2022 Query parsing & validation\n\u2022 Type-safe resolvers\n\u2022 Batched SQL execution\n\u2022 Relationship traversal",
-      "fontSize": 10,
+      "text": "DAB GraphQL Engine\n\n• Schema introspection\n• Query parsing & validation\n• Type-safe resolvers\n• Batched SQL execution\n• Relationship traversal",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -770,66 +602,10 @@
       "roughness": 0,
       "opacity": 100,
       "text": "GraphQL Response\n\n{ \"data\": {\n    \"bridges\": {\n      \"items\": [...]\n    }\n  }\n}",
-      "fontSize": 10,
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-gql-1",
-      "x": 355,
-      "y": 605,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#E81123",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-gql-2",
-      "x": 685,
-      "y": 605,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#E81123",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "rectangle",
@@ -843,7 +619,7 @@
       "strokeColor": "#0078D4",
       "backgroundColor": "#F0F8FF",
       "fillStyle": "solid",
-      "strokeWidth": 2,
+      "strokeWidth": 4,
       "roughness": 0,
       "opacity": 100,
       "roundness": {
@@ -865,7 +641,7 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udcbe Database Schema",
+      "text": "💾 Database Schema",
       "fontSize": 16,
       "fontFamily": 1,
       "textAlign": "left",
@@ -905,8 +681,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udccb Categories\n\nId (PK)\nName\nDescription",
-      "fontSize": 10,
+      "text": "📋 Categories\n\nId (PK)\nName\nDescription",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -945,8 +721,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\uddfa\ufe0f States\n\nId (PK)\nName\nRegion",
-      "fontSize": 10,
+      "text": "🗺️ States\n\nId (PK)\nName\nRegion",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -985,8 +761,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\ude82 RailroadAccidents\n\nId (PK), StateId (FK)\nReportingRailroadName\nAccidentDate, Casualties",
-      "fontSize": 10,
+      "text": "🚂 RailroadAccidents\n\nId (PK), StateId (FK)\nReportingRailroadName\nAccidentDate, Casualties",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -1025,8 +801,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83c\udf09 Bridges\n\nId (PK), StateId (FK)\nStructureNumber, YearBuilt\nConditionRating",
-      "fontSize": 10,
+      "text": "🌉 Bridges\n\nId (PK), StateId (FK)\nStructureNumber, YearBuilt\nConditionRating",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -1065,8 +841,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\ude8c TransitAgencies\n\nId (PK), StateId (FK)\nNtdId, AgencyName\nTotalVehicles, Ridership",
-      "fontSize": 10,
+      "text": "🚌 TransitAgencies\n\nId (PK), StateId (FK)\nNtdId, AgencyName\nTotalVehicles, Ridership",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -1105,8 +881,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\ude97 VehicleFatalities\n\nId (PK), StateId (FK)\nCaseNumber, CrashDate\nPersonsInvolved",
-      "fontSize": 10,
+      "text": "🚗 VehicleFatalities\n\nId (PK), StateId (FK)\nCaseNumber, CrashDate\nPersonsInvolved",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -1123,7 +899,7 @@
       "strokeColor": "#666666",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
-      "strokeWidth": 1,
+      "strokeWidth": 2,
       "roughness": 0,
       "opacity": 100,
       "strokeStyle": "dashed",
@@ -1152,7 +928,7 @@
       "strokeColor": "#666666",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
-      "strokeWidth": 1,
+      "strokeWidth": 2,
       "roughness": 0,
       "opacity": 100,
       "strokeStyle": "dashed",
@@ -1181,7 +957,7 @@
       "strokeColor": "#666666",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
-      "strokeWidth": 1,
+      "strokeWidth": 2,
       "roughness": 0,
       "opacity": 100,
       "strokeStyle": "dashed",
@@ -1210,7 +986,7 @@
       "strokeColor": "#666666",
       "backgroundColor": "transparent",
       "fillStyle": "solid",
-      "strokeWidth": 1,
+      "strokeWidth": 2,
       "roughness": 0,
       "opacity": 100,
       "strokeStyle": "dashed",
@@ -1243,7 +1019,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "StateId (FK)",
-      "fontSize": 10,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -3146,7 +2922,7 @@
       "link": null,
       "fontSize": 16,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -4928,7 +4704,7 @@
       "link": null,
       "fontSize": 6,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -6710,7 +6486,7 @@
       "link": null,
       "fontSize": 6,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -7204,7 +6980,7 @@
       "link": null,
       "fontSize": 6,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -8986,7 +8762,7 @@
       "link": null,
       "fontSize": 6,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -9480,7 +9256,7 @@
       "link": null,
       "fontSize": 6,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",

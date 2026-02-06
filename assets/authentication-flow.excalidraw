@@ -40,7 +40,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "OAuth 2.0 / OpenID Connect with Microsoft Entra ID",
-      "fontSize": 16,
+      "fontSize": 18,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -279,39 +279,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2460 Navigate to\n   application",
-      "fontSize": 10,
+      "text": "① Navigate to\n   application",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-1",
-      "x": 210,
-      "y": 125,
-      "width": 45,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#424242",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          45,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "rectangle",
@@ -347,8 +319,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2461 Load React app\n   Initialize MSAL.js",
-      "fontSize": 10,
+      "text": "② Load React app\n   Initialize MSAL.js",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -387,39 +359,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2462 Click \"Sign In\"\n   msalInstance.login()",
-      "fontSize": 10,
+      "text": "③ Click \"Sign In\"\n   msalInstance.login()",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-3",
-      "x": 445,
-      "y": 205,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#FFB900",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "text",
@@ -437,7 +381,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "Redirect",
-      "fontSize": 8,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -476,40 +420,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2463 Show login page\n   Collect credentials",
-      "fontSize": 10,
+      "text": "④ Show login page\n   Collect credentials",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-4-back",
-      "x": 510,
-      "y": 280,
-      "width": 130,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#424242",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "roughness": 0,
-      "opacity": 100,
-      "strokeStyle": "dashed",
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          -130,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "text",
@@ -527,7 +442,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "Login prompt",
-      "fontSize": 8,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -566,39 +481,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2464 Enter credentials\n   Complete MFA",
-      "fontSize": 10,
+      "text": "⑤ Enter credentials\n   Complete MFA",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-5",
-      "x": 210,
-      "y": 285,
-      "width": 280,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#FFB900",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          280,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "rectangle",
@@ -634,39 +521,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2465 Validate credentials\n   Issue tokens:\n   \u2022 ID Token (user info)\n   \u2022 Access Token (API)",
-      "fontSize": 10,
+      "text": "⑥ Validate credentials\n   Issue tokens:\n   • ID Token (user info)\n   • Access Token (API)",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-6",
-      "x": 510,
-      "y": 360,
-      "width": 45,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#0078D4",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          -45,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "text",
@@ -684,7 +543,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "Tokens",
-      "fontSize": 8,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -723,8 +582,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2466 Store tokens\n   (memory only)\n   Update UI state",
-      "fontSize": 10,
+      "text": "⑦ Store tokens\n   (memory only)\n   Update UI state",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -763,39 +622,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2467 Call API with token\n   Bearer auth header",
-      "fontSize": 10,
+      "text": "⑧ Call API with token\n   Bearer auth header",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-8",
-      "x": 445,
-      "y": 535,
-      "width": 290,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#107C10",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          290,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "text",
@@ -813,7 +644,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "Authorization: Bearer ...",
-      "fontSize": 8,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -852,39 +683,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2468 Validate JWT:\n   \u2022 Check signature\n   \u2022 Verify issuer\n   \u2022 Match audience\n   \u2022 Check expiration",
-      "fontSize": 10,
+      "text": "⑨ Validate JWT:\n   • Check signature\n   • Verify issuer\n   • Match audience\n   • Check expiration",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-9",
-      "x": 925,
-      "y": 550,
-      "width": 40,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#0078D4",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          40,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "rectangle",
@@ -920,8 +723,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u2469 Execute query\n   Return results",
-      "fontSize": 10,
+      "text": "⑩ Execute query\n   Return results",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -970,7 +773,7 @@
       "roughness": 0,
       "opacity": 100,
       "text": "JSON Data Response",
-      "fontSize": 8,
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "top"
@@ -1009,39 +812,11 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u246a Display data\n   Update React state",
-      "fontSize": 10,
+      "text": "⑪ Display data\n   Update React state",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
-    },
-    {
-      "type": "arrow",
-      "version": 1,
-      "id": "arrow-11",
-      "x": 280,
-      "y": 705,
-      "width": 65,
-      "height": 0,
-      "angle": 0,
-      "strokeColor": "#424242",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "roughness": 0,
-      "opacity": 100,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          -65,
-          0
-        ]
-      ],
-      "startArrowhead": null,
-      "endArrowhead": "arrow"
     },
     {
       "type": "rectangle",
@@ -1077,8 +852,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\u246b View data\n   Interact with UI",
-      "fontSize": 10,
+      "text": "⑫ View data\n   Interact with UI",
+      "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -1095,7 +870,7 @@
       "strokeColor": "#424242",
       "backgroundColor": "#FFFFFF",
       "fillStyle": "solid",
-      "strokeWidth": 1,
+      "strokeWidth": 2,
       "roughness": 0,
       "opacity": 100,
       "roundness": {
@@ -1117,8 +892,8 @@
       "strokeWidth": 1,
       "roughness": 0,
       "opacity": 100,
-      "text": "\ud83d\udccb Authentication Details\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nMSAL Configuration\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nClientId: [frontend-id]\nAuthority:\n  login.microsoftonline\n  .com/[tenant-id]\nRedirectUri:\n  https://app.azurefd.net\nScopes:\n  api://[dab-id]/access\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nToken Contents\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nID Token (user info):\n\u2022 oid: user object ID\n\u2022 name: display name\n\u2022 email: user email\n\u2022 tid: tenant ID\n\nAccess Token (API):\n\u2022 aud: api://[dab-id]\n\u2022 iss: sts.windows.net\n\u2022 exp: expiration time\n\u2022 roles: user roles\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nDAB Validation\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nConfig: dab-config.json\n\nauthentication:\n  provider: AzureAD\n  jwt:\n    audience:\n      api://[dab-id]\n    issuer:\n      sts.windows.net\n      /[tenant-id]/\n\nPermissions:\n\u2022 anonymous: read\n\u2022 authenticated: CRUD\n\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\nSecurity Features\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\u2713 Tenant-only access\n\u2713 MFA supported\n\u2713 Token expiration\n\u2713 Secure storage\n\u2713 HTTPS only",
-      "fontSize": 9,
+      "text": "📋 Authentication Details\n\n━━━━━━━━━━━━━━━━━━━━━\nMSAL Configuration\n━━━━━━━━━━━━━━━━━━━━━\nClientId: [frontend-id]\nAuthority:\n  login.microsoftonline\n  .com/[tenant-id]\nRedirectUri:\n  https://app.azurefd.net\nScopes:\n  api://[dab-id]/access\n\n━━━━━━━━━━━━━━━━━━━━━\nToken Contents\n━━━━━━━━━━━━━━━━━━━━━\nID Token (user info):\n• oid: user object ID\n• name: display name\n• email: user email\n• tid: tenant ID\n\nAccess Token (API):\n• aud: api://[dab-id]\n• iss: sts.windows.net\n• exp: expiration time\n• roles: user roles\n\n━━━━━━━━━━━━━━━━━━━━━\nDAB Validation\n━━━━━━━━━━━━━━━━━━━━━\nConfig: dab-config.json\n\nauthentication:\n  provider: AzureAD\n  jwt:\n    audience:\n      api://[dab-id]\n    issuer:\n      sts.windows.net\n      /[tenant-id]/\n\nPermissions:\n• anonymous: read\n• authenticated: CRUD\n\n━━━━━━━━━━━━━━━━━━━━━\nSecurity Features\n━━━━━━━━━━━━━━━━━━━━━\n✓ Tenant-only access\n✓ MFA supported\n✓ Token expiration\n✓ Secure storage\n✓ HTTPS only",
+      "fontSize": 12,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top"
@@ -2152,7 +1927,7 @@
       "link": null,
       "fontSize": 16,
       "fontFamily": 1,
-      "text": "Container \nApps",
+      "text": "Container\nApps",
       "baseline": 34,
       "textAlign": "left",
       "verticalAlign": "top",
@@ -3603,7 +3378,7 @@
       "updated": 1665671839724,
       "link": null,
       "locked": false,
-      "fontSize": 36,
+      "fontSize": 32,
       "fontFamily": 1,
       "text": "SQL",
       "baseline": 32,
