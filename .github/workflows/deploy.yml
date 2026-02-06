@@ -1,0 +1,310 @@
+name: Build and Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'infrastructure/**'
+      - '.github/workflows/deploy.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'infrastructure/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      skip_infrastructure:
+        description: 'Skip infrastructure deployment'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  DAB_CONTAINER_APP_NAME: ${{ secrets.DAB_CONTAINER_APP_NAME }}
+  FRONTEND_CONTAINER_APP_NAME: ${{ secrets.FRONTEND_CONTAINER_APP_NAME }}
+
+jobs:
+  # ===========================================================================
+  # Build and Test Frontend
+  # ===========================================================================
+  build-and-test:
+    name: Build & Test Frontend
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set-tag.outputs.image_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Run linter
+        working-directory: src/frontend
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: src/frontend
+        run: npm test -- --run
+
+      - name: Build frontend
+        working-directory: src/frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: /api
+          VITE_GRAPHQL_URL: /graphql
+          VITE_AZURE_AD_CLIENT_ID: ${{ secrets.FRONTEND_CLIENT_ID }}
+          VITE_AZURE_AD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Set image tag
+        id: set-tag
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "image_tag=pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: src/frontend/dist
+          retention-days: 1
+
+  # ===========================================================================
+  # Validate Bicep Templates
+  # ===========================================================================
+  validate-bicep:
+    name: Validate Bicep
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Bicep template
+        run: |
+          az bicep build --file infrastructure/bicep/main.bicep
+
+      - name: What-If (Preview Changes)
+        if: github.event_name == 'pull_request'
+        run: |
+          az deployment group what-if \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infrastructure/bicep/main.bicep \
+            --parameters \
+              environment=dev \
+              baseName=dabdemo \
+              sqlAdminPassword="${{ secrets.SQL_ADMIN_PASSWORD }}" \
+              dabClientId="${{ secrets.DAB_CLIENT_ID }}" \
+              frontendClientId="${{ secrets.FRONTEND_CLIENT_ID }}" \
+              deployContainers=true \
+              logAnalyticsWorkspaceId="${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}" \
+              enableDiagnostics=true \
+              deployFrontDoor=true \
+              minReplicas=0 \
+              maxReplicas=10 \
+              httpScaleThreshold=100
+
+  # ===========================================================================
+  # Build and Push Container Images
+  # ===========================================================================
+  build-push-images:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: [build-and-test, validate-bicep]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: src/frontend/dist
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and push DAB image
+        run: |
+          cd src/dab-config
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/dab:${{ needs.build-and-test.outputs.image_tag }} .
+          docker tag ${{ env.ACR_NAME }}.azurecr.io/dab:${{ needs.build-and-test.outputs.image_tag }} ${{ env.ACR_NAME }}.azurecr.io/dab:latest
+          docker push ${{ env.ACR_NAME }}.azurecr.io/dab:${{ needs.build-and-test.outputs.image_tag }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/dab:latest
+
+      - name: Build and push Frontend image
+        run: |
+          cd src/frontend
+          docker build \
+            --build-arg VITE_API_BASE_URL=/api \
+            --build-arg VITE_GRAPHQL_URL=/graphql \
+            --build-arg VITE_AZURE_AD_CLIENT_ID=${{ secrets.FRONTEND_CLIENT_ID }} \
+            --build-arg VITE_AZURE_AD_TENANT_ID=${{ secrets.AZURE_TENANT_ID }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/frontend:${{ needs.build-and-test.outputs.image_tag }} .
+          docker tag ${{ env.ACR_NAME }}.azurecr.io/frontend:${{ needs.build-and-test.outputs.image_tag }} ${{ env.ACR_NAME }}.azurecr.io/frontend:latest
+          docker push ${{ env.ACR_NAME }}.azurecr.io/frontend:${{ needs.build-and-test.outputs.image_tag }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/frontend:latest
+
+  # ===========================================================================
+  # Deploy to Azure Container Apps
+  # ===========================================================================
+  deploy:
+    name: Deploy to Container Apps
+    runs-on: ubuntu-latest
+    needs: [build-and-test, build-push-images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Infrastructure (if not skipped)
+        if: github.event.inputs.skip_infrastructure != 'true'
+        run: |
+          az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file infrastructure/bicep/main.bicep \
+            --parameters \
+              environment=${{ github.event.inputs.environment || 'dev' }} \
+              baseName=dabdemo \
+              sqlAdminPassword="${{ secrets.SQL_ADMIN_PASSWORD }}" \
+              dabClientId="${{ secrets.DAB_CLIENT_ID }}" \
+              frontendClientId="${{ secrets.FRONTEND_CLIENT_ID }}" \
+              deployContainers=true \
+              logAnalyticsWorkspaceId="${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}" \
+              enableDiagnostics=true \
+              deployFrontDoor=true \
+              imageTag=${{ needs.build-and-test.outputs.image_tag }} \
+              minReplicas=0 \
+              maxReplicas=10 \
+              httpScaleThreshold=100
+
+      - name: Update DAB Container App
+        run: |
+          az containerapp update \
+            --name ${{ env.DAB_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/dab:${{ needs.build-and-test.outputs.image_tag }}
+
+      - name: Update Frontend Container App
+        run: |
+          az containerapp update \
+            --name ${{ env.FRONTEND_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/frontend:${{ needs.build-and-test.outputs.image_tag }}
+
+      - name: Verify DAB deployment
+        run: |
+          # Wait for revision to be ready
+          sleep 30
+
+          # Get the FQDN
+          FQDN=$(az containerapp show \
+            --name ${{ env.DAB_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+
+          # Health check
+          echo "Checking health at https://$FQDN/"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FQDN/")
+
+          if [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 400 ]]; then
+            echo "DAB health check passed (HTTP $HTTP_STATUS)"
+          else
+            echo "DAB health check failed (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+
+      - name: Verify Frontend deployment
+        run: |
+          # Get the FQDN
+          FQDN=$(az containerapp show \
+            --name ${{ env.FRONTEND_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+
+          # Health check
+          echo "Checking health at https://$FQDN/"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FQDN/")
+
+          if [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 400 ]]; then
+            echo "Frontend health check passed (HTTP $HTTP_STATUS)"
+          else
+            echo "Frontend health check failed (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+
+      - name: Output deployment URLs
+        run: |
+          DAB_FQDN=$(az containerapp show \
+            --name ${{ env.DAB_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+
+          FRONTEND_FQDN=$(az containerapp show \
+            --name ${{ env.FRONTEND_CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+
+          echo "## Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Container Apps URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: https://$FRONTEND_FQDN" >> $GITHUB_STEP_SUMMARY
+          echo "- **DAB API**: https://$DAB_FQDN" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Tag: \`${{ needs.build-and-test.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY

@@ -1,6 +1,19 @@
 # Architecture Documentation
 
+<div align="center">
+
+![Azure](https://img.shields.io/badge/Microsoft%20Azure-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
+![Container Apps](https://img.shields.io/badge/Container%20Apps-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![Data API Builder](https://img.shields.io/badge/Data%20API%20Builder-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+
+**System Architecture & Design Documentation**
+
+</div>
+
 This document provides a comprehensive overview of the DOT Transportation Data Portal architecture, including system components, data flow, and design decisions.
+
+> **Visual Diagrams**: Interactive Excalidraw diagrams with official Azure icons are available in the [`assets/`](../assets/) folder. Open `.excalidraw` files in VS Code (with Excalidraw extension) or at [excalidraw.com](https://excalidraw.com) for detailed visual representations.
 
 ---
 
@@ -14,6 +27,7 @@ This document provides a comprehensive overview of the DOT Transportation Data P
 - [Database Schema](#database-schema)
 - [API Architecture](#api-architecture)
 - [Deployment Architecture](#deployment-architecture)
+- [Auto-Scaling Architecture](#auto-scaling-architecture)
 - [Design Decisions](#design-decisions)
 
 ---
@@ -31,10 +45,12 @@ The DOT Transportation Data Portal is a full-stack web application that demonstr
 | **API** | Azure Data API Builder | REST & GraphQL APIs |
 | **Database** | Azure SQL Database | Data persistence |
 | **Authentication** | Microsoft Entra ID | Identity management |
-| **Hosting** | Azure Container Instances | Container runtime |
+| **Hosting** | Azure Container Apps | Auto-scaling container runtime |
 | **Registry** | Azure Container Registry | Container images |
+| **Telemetry** | Application Insights | APM and distributed tracing |
 | **Monitoring** | Log Analytics Workspace | Centralized logging & diagnostics |
 | **IaC** | Bicep | Infrastructure as Code |
+| **CI/CD** | GitHub Actions | Automated deployment pipeline |
 
 ---
 
@@ -43,36 +59,36 @@ The DOT Transportation Data Portal is a full-stack web application that demonstr
 ```mermaid
 flowchart TB
     subgraph Internet["Internet"]
-        User["👤 User<br/>Web Browser"]
+        User["User<br/>Web Browser"]
     end
 
     subgraph Azure["Azure Cloud"]
         subgraph Edge["Edge Services"]
-            FrontDoor["🌐 Azure Front Door<br/>Global Load Balancer<br/>Managed SSL/TLS"]
+            FrontDoor["Azure Front Door<br/>Global Load Balancer<br/>Managed SSL/TLS"]
         end
 
         subgraph RG["Resource Group: rg-dot-demo"]
-            subgraph Compute["Compute Layer"]
-                Frontend["🖥️ Frontend<br/>React + Nginx<br/>(ACI)"]
-                DAB["⚡ Data API Builder<br/>REST + GraphQL<br/>(ACI)"]
+            subgraph CAE["Container Apps Environment"]
+                Frontend["Frontend<br/>React + Nginx<br/>(Container App)"]
+                DAB["Data API Builder<br/>REST + GraphQL<br/>(Container App)"]
             end
 
             subgraph Data["Data Layer"]
-                SQL[("💾 Azure SQL<br/>Database<br/>DOT Data")]
-                Storage["📁 Azure Storage<br/>File Share"]
+                SQL[("Azure SQL<br/>Database<br/>DOT Data")]
             end
 
             subgraph Registry["Container Registry"]
-                ACR["📦 Azure Container<br/>Registry<br/>Images"]
+                ACR["Azure Container<br/>Registry<br/>Images"]
             end
         end
 
         subgraph Monitoring["Monitoring"]
-            LAW["📊 Log Analytics<br/>Workspace<br/>Diagnostics"]
+            AppInsights["Application<br/>Insights<br/>APM"]
+            LAW["Log Analytics<br/>Workspace<br/>Diagnostics"]
         end
 
         subgraph Identity["Identity"]
-            EntraID["🔐 Microsoft<br/>Entra ID<br/>Authentication"]
+            EntraID["Microsoft<br/>Entra ID<br/>Authentication"]
         end
     end
 
@@ -81,13 +97,12 @@ flowchart TB
     FrontDoor -->|"Route: /api/*"| DAB
     Frontend -->|REST/GraphQL| DAB
     DAB -->|SQL TDS| SQL
-    DAB -.->|Config| Storage
     Frontend -.->|Auth| EntraID
     DAB -.->|JWT Validation| EntraID
     ACR -.->|Pull Images| Frontend
     ACR -.->|Pull Images| DAB
-    Frontend -.->|Logs| LAW
-    DAB -.->|Logs| LAW
+    Frontend -.->|Telemetry| AppInsights
+    DAB -.->|Telemetry| AppInsights
     SQL -.->|Diagnostics| LAW
     ACR -.->|Events| LAW
     FrontDoor -.->|Access Logs| LAW
@@ -95,7 +110,7 @@ flowchart TB
     style Azure fill:#e3f2fd
     style Edge fill:#ffe6e8
     style RG fill:#bbdefb
-    style Compute fill:#c8e6c9
+    style CAE fill:#c8e6c9
     style Data fill:#fff3e0
     style Identity fill:#f3e5f5
     style Monitoring fill:#e8f5e9
@@ -201,14 +216,14 @@ graph LR
 
 | Capability | REST | GraphQL |
 |------------|------|---------|
-| **Read** | ✅ GET | ✅ Query |
-| **Create** | ✅ POST | ✅ Mutation |
-| **Update** | ✅ PUT/PATCH | ✅ Mutation |
-| **Delete** | ✅ DELETE | ✅ Mutation |
-| **Filter** | ✅ OData $filter | ✅ Filter argument |
-| **Sort** | ✅ OData $orderby | ✅ OrderBy argument |
-| **Paginate** | ✅ $top/$skip | ✅ first/after |
-| **Relationships** | ✅ $expand | ✅ Nested queries |
+| **Read** | GET | Query |
+| **Create** | POST | Mutation |
+| **Update** | PUT/PATCH | Mutation |
+| **Delete** | DELETE | Mutation |
+| **Filter** | OData $filter | Filter argument |
+| **Sort** | OData $orderby | OrderBy argument |
+| **Paginate** | $top/$skip | first/after |
+| **Relationships** | $expand | Nested queries |
 
 ---
 
@@ -275,7 +290,7 @@ sequenceDiagram
 flowchart TB
     subgraph External
         User["User"]
-        Attacker["🚫 Attacker"]
+        Attacker["Attacker"]
     end
 
     subgraph Perimeter["Security Perimeter"]
@@ -304,7 +319,7 @@ flowchart TB
     end
 
     User -->|HTTPS| WAF
-    Attacker -->|❌| WAF
+    Attacker -->|Blocked| WAF
     WAF --> NSG
     NSG --> Frontend
     Frontend --> JWT
@@ -319,7 +334,7 @@ flowchart TB
 | Layer | Protection | Implementation |
 |-------|------------|----------------|
 | **Network** | DDoS, Firewall | Azure DDoS, NSG, SQL Firewall |
-| **Transport** | Encryption | TLS 1.2+ everywhere |
+| **Transport** | Encryption | TLS 1.2+ everywhere (Container Apps native HTTPS) |
 | **Authentication** | Identity | Microsoft Entra ID + JWT |
 | **Authorization** | Access Control | DAB permissions, database RLS |
 | **Application** | Input Validation | Strict request parsing |
@@ -491,25 +506,19 @@ graph TB
 graph TB
     subgraph Subscription["Azure Subscription"]
         subgraph Edge["Edge Services"]
-            FrontDoor["🌐 Azure Front Door<br/>Standard SKU"]
+            FrontDoor["Azure Front Door<br/>Standard SKU"]
             FDEndpoint["Front Door Endpoint<br/>HTTPS with managed cert"]
         end
 
         subgraph RG["Resource Group"]
-            subgraph Network["Networking"]
-                PIP1["Public IP<br/>DAB"]
-                PIP2["Public IP<br/>Frontend"]
-            end
-
-            subgraph Containers["Container Instances"]
-                ACI1["ACI: DAB<br/>1 vCPU, 1.5GB"]
-                ACI2["ACI: Frontend<br/>0.5 vCPU, 0.5GB"]
+            subgraph CAE["Container Apps Environment"]
+                CA1["Container App: DAB<br/>1 vCPU, 2GB<br/>Scale: 0-10"]
+                CA2["Container App: Frontend<br/>0.5 vCPU, 1GB<br/>Scale: 0-10"]
             end
 
             subgraph Storage["Storage"]
                 ACR["Container Registry<br/>Basic SKU"]
                 StorageAcc["Storage Account<br/>Standard LRS"]
-                FileShare["File Share<br/>dab-config"]
             end
 
             subgraph Database["Database"]
@@ -518,6 +527,7 @@ graph TB
             end
 
             subgraph Observability["Monitoring"]
+                AppInsights["Application Insights"]
                 LAW["Log Analytics<br/>Workspace"]
             end
         end
@@ -529,20 +539,17 @@ graph TB
     end
 
     FrontDoor --> FDEndpoint
-    FDEndpoint -->|"Route: /"| PIP2
-    FDEndpoint -->|"Route: /api/*"| PIP1
-    PIP1 --> ACI1
-    PIP2 --> ACI2
-    ACI1 --> SQLDB
-    ACI1 --> FileShare
-    ACR --> ACI1
-    ACR --> ACI2
-    StorageAcc --> FileShare
+    FDEndpoint -->|"Route: /"| CA2
+    FDEndpoint -->|"Route: /api/*"| CA1
+    CA1 --> SQLDB
+    ACR --> CA1
+    ACR --> CA2
     SQLServer --> SQLDB
-    ACI1 -.-> AppReg1
-    ACI2 -.-> AppReg2
-    ACI1 -.-> LAW
-    ACI2 -.-> LAW
+    CA1 -.-> AppReg1
+    CA2 -.-> AppReg2
+    CA1 -.-> AppInsights
+    CA2 -.-> AppInsights
+    AppInsights -.-> LAW
     SQLDB -.-> LAW
     ACR -.-> LAW
 ```
@@ -556,48 +563,108 @@ graph TB
         FrontendImage["frontend:latest<br/>~25MB"]
     end
 
-    subgraph ACIDAB["ACI: DAB"]
+    subgraph CADAB["Container App: DAB"]
         DABContainer["DAB Container<br/>mcr.microsoft.com/azure-databases/data-api-builder"]
-        DABConfig["Volume: /app/config<br/>dab-config.json"]
-        DABEnv["Environment Variables<br/>CONNECTION_STRING<br/>CLIENT_ID<br/>TENANT_ID"]
+        DABSecrets["Secrets<br/>CONNECTION_STRING"]
+        DABEnv["Environment Variables<br/>CLIENT_ID<br/>TENANT_ID<br/>APP_INSIGHTS"]
     end
 
-    subgraph ACIFrontend["ACI: Frontend"]
+    subgraph CAFrontend["Container App: Frontend"]
         NginxContainer["Nginx Container<br/>nginx:alpine"]
-        StaticFiles["Volume: /usr/share/nginx/html<br/>React build output"]
+        StaticFiles["React build output<br/>/usr/share/nginx/html"]
     end
 
     DABImage --> DABContainer
     FrontendImage --> NginxContainer
-    DABConfig --> DABContainer
+    DABSecrets --> DABContainer
     DABEnv --> DABContainer
     StaticFiles --> NginxContainer
 ```
 
 ---
 
+## Auto-Scaling Architecture
+
+Container Apps provide HTTP-based auto-scaling with scale-to-zero capability.
+
+```mermaid
+flowchart LR
+    subgraph Traffic["Incoming Traffic"]
+        R1["Request 1"]
+        R2["Request 2"]
+        RN["Request N"]
+    end
+
+    subgraph CAE["Container Apps Environment"]
+        subgraph Scaler["KEDA Scaler"]
+            HTTPScaler["HTTP Scaler<br/>threshold: 100"]
+        end
+
+        subgraph Replicas["Container Replicas"]
+            Rep0["Replica 0<br/>(always on if min=1)"]
+            Rep1["Replica 1<br/>(scaled up)"]
+            RepN["Replica N<br/>(max=10)"]
+        end
+    end
+
+    subgraph Metrics["Metrics"]
+        Requests["Concurrent<br/>Requests"]
+        Count["Active<br/>Replicas"]
+    end
+
+    R1 --> HTTPScaler
+    R2 --> HTTPScaler
+    RN --> HTTPScaler
+
+    HTTPScaler --> Rep0
+    HTTPScaler --> Rep1
+    HTTPScaler --> RepN
+
+    HTTPScaler -.-> Requests
+    Replicas -.-> Count
+```
+
+### Scaling Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `minReplicas` | 0 | Minimum replicas (0 = scale to zero) |
+| `maxReplicas` | 10 | Maximum replicas |
+| `httpScaleThreshold` | 100 | Concurrent requests to trigger scale |
+
+### Scale-to-Zero Behavior
+
+1. **Idle Detection**: No requests for ~5 minutes
+2. **Scale Down**: Replicas reduced to 0
+3. **Cold Start**: First request triggers container start (~2-5 seconds)
+4. **Warm Up**: Subsequent requests served immediately
+
+For production workloads requiring instant response, set `minReplicas=1`.
+
+---
+
 ## Monitoring Architecture
 
-All resources are configured with diagnostic settings that send logs and metrics to a centralized Log Analytics workspace.
+All resources are configured with diagnostic settings that send logs and metrics to a centralized Log Analytics workspace, plus Application Insights for APM.
 
 ```mermaid
 flowchart TB
     subgraph Resources["Azure Resources"]
         ACR["Container Registry"]
-        ACI1["ACI: DAB"]
-        ACI2["ACI: Frontend"]
+        CA1["Container App: DAB"]
+        CA2["Container App: Frontend"]
         SQL["SQL Database"]
-        Storage["Storage Account"]
     end
 
     subgraph Monitoring["Monitoring"]
+        AppInsights["Application Insights"]
         LAW["Log Analytics<br/>Workspace"]
 
         subgraph Tables["Log Tables"]
-            ContainerLogs["ContainerInstanceLog_CL"]
+            AppRequests["requests<br/>dependencies<br/>exceptions"]
+            ContainerLogs["ContainerAppConsoleLogs_CL"]
             AzureDiag["AzureDiagnostics"]
             ContainerReg["ContainerRegistryRepositoryEvents"]
-            StorageLogs["StorageBlobLogs<br/>StorageFileLogs"]
         end
     end
 
@@ -607,16 +674,19 @@ flowchart TB
         Dashboards["Dashboards"]
     end
 
-    ACR -->|"Registry events"| ContainerReg
-    ACI1 -->|"Container logs"| ContainerLogs
-    ACI2 -->|"Container logs"| ContainerLogs
-    SQL -->|"Query insights, errors"| AzureDiag
-    Storage -->|"Access logs"| StorageLogs
+    CA1 -->|"Telemetry"| AppInsights
+    CA2 -->|"Telemetry"| AppInsights
+    AppInsights -->|"APM Data"| AppRequests
 
+    ACR -->|"Registry events"| ContainerReg
+    CA1 -->|"Console logs"| ContainerLogs
+    CA2 -->|"Console logs"| ContainerLogs
+    SQL -->|"Query insights, errors"| AzureDiag
+
+    AppRequests --> LAW
     ContainerLogs --> LAW
     AzureDiag --> LAW
     ContainerReg --> LAW
-    StorageLogs --> LAW
 
     LAW --> Workbooks
     LAW --> Alerts
@@ -629,17 +699,23 @@ flowchart TB
 |----------|---------------|---------|
 | **Container Registry** | ContainerRegistryRepositoryEvents, ContainerRegistryLoginEvents | AllMetrics |
 | **SQL Database** | SQLInsights, AutomaticTuning, QueryStoreRuntimeStatistics, Errors, Deadlocks, Timeouts, Blocks | Basic, InstanceAndAppAdvanced |
-| **Storage Account** | StorageBlobLogs, StorageFileLogs | Transaction |
-| **Container Instances** | ContainerInstanceLogs (via Log Analytics integration) | - |
+| **Container Apps** | Console logs via environment configuration | Via App Insights |
+| **Application Insights** | requests, dependencies, exceptions, traces | Performance counters |
 
 ### Key Queries
 
 ```kusto
-// DAB container startup and errors
-ContainerInstanceLog_CL
-| where ContainerGroup_s contains "dab"
-| where Message contains "error" or Message contains "fail"
-| project TimeGenerated, Message
+// Application Insights - Failed requests
+requests
+| where success == false
+| summarize count() by name, resultCode
+| order by count_ desc
+
+// Container App console logs
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s contains "dab"
+| where Log_s contains "error" or Log_s contains "fail"
+| project TimeGenerated, Log_s
 
 // SQL slow queries
 AzureDiagnostics
@@ -647,23 +723,26 @@ AzureDiagnostics
 | where duration_d > 1000  // queries > 1 second
 | project TimeGenerated, query_hash_s, duration_d
 
-// Container restart events
-ContainerInstanceLog_CL
-| where Message contains "Starting"
-| summarize RestartCount = count() by bin(TimeGenerated, 1h), ContainerGroup_s
+// Container App replica count over time
+ContainerAppSystemLogs_CL
+| where Reason_s == "ScaledUp" or Reason_s == "ScaledDown"
+| project TimeGenerated, ContainerAppName_s, Reason_s, Count_d
 ```
 
 ---
 
 ## Design Decisions
 
-### Why Azure Container Instances?
+### Why Azure Container Apps?
 
 | Option | Pros | Cons | Decision |
 |--------|------|------|----------|
-| **ACI** | Simple, serverless, low cost | Limited scaling | ✅ Best for demo |
-| **AKS** | Scalable, production-ready | Complex, higher cost | For production |
+| **Container Apps** | Auto-scaling, scale-to-zero, native HTTPS, simple | Regional availability | Best for this use case |
+| **ACI** | Simple, serverless | No auto-scaling, no scale-to-zero | Previous implementation |
+| **AKS** | Full control, enterprise features | Complex, higher cost | For advanced scenarios |
 | **App Service** | Managed, easy | Less container flexibility | Alternative |
+
+**Decision:** Container Apps provides the best balance of simplicity and features for containerized workloads with auto-scaling requirements.
 
 ### Why Data API Builder?
 
@@ -679,61 +758,46 @@ ContainerInstanceLog_CL
 
 | Tool | Azure Native | Learning Curve | State Management |
 |------|--------------|----------------|------------------|
-| **Bicep** | ✅ Yes | Low | Built-in |
-| **Terraform** | ❌ Provider | Medium | External |
-| **ARM** | ✅ Yes | High | Built-in |
+| **Bicep** | Yes | Low | Built-in |
+| **Terraform** | Provider | Medium | External |
+| **ARM** | Yes | High | Built-in |
 
 **Decision:** Bicep offers native Azure support with simpler syntax than ARM templates.
 
 ---
 
-## Scalability Considerations
+## Scalability Summary
 
-### Current Implementation (Demo)
+### Current Implementation
 
-| Feature | Current State | Notes |
-|---------|--------------|-------|
-| **Load Balancing** | ✅ Azure Front Door | Global HTTPS with managed SSL |
-| **Monitoring** | ✅ Log Analytics | Full diagnostics enabled |
-| **Container Hosting** | Single ACI instances | No auto-scaling |
-| **Database** | Basic SQL tier (5 DTUs) | Sufficient for demo |
-| **CDN** | Not implemented | Static assets served from ACI |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Auto-Scaling** | Implemented | HTTP-based, 0-10 replicas |
+| **Scale-to-Zero** | Implemented | Cost savings when idle |
+| **Load Balancing** | Implemented | Azure Front Door |
+| **APM** | Implemented | Application Insights |
+| **Monitoring** | Implemented | Log Analytics |
+| **Native HTTPS** | Implemented | Container Apps built-in |
+| **Database** | Basic SQL tier | 5 DTUs (sufficient for demo) |
 
 ### Production Recommendations
 
-For production workloads, consider these enhancements:
-
-```mermaid
-graph TB
-    subgraph Production["Production Architecture"]
-        CDN["Azure CDN<br/>(Static Assets)"]
-        FrontDoor["Azure Front Door<br/>(Already Implemented ✅)"]
-        AKS["Azure Kubernetes Service<br/>(Replace ACI)"]
-        SQLHA["SQL Database<br/>Premium/Hyperscale"]
-        Redis["Azure Redis Cache<br/>(API Caching)"]
-        AppInsights["Application Insights<br/>(APM)"]
-    end
-
-    CDN --> FrontDoor
-    FrontDoor --> AKS
-    AKS --> SQLHA
-    AKS --> Redis
-    AKS --> AppInsights
-```
+For production workloads:
 
 | Enhancement | Purpose | When to Consider |
 |-------------|---------|------------------|
-| **AKS** | Auto-scaling, high availability | >100 concurrent users |
-| **Azure CDN** | Cache static assets globally | High traffic, global users |
+| **minReplicas=1** | Avoid cold starts | Always-on requirement |
+| **Azure CDN** | Cache static assets | High traffic, global users |
 | **Redis Cache** | Reduce database load | Frequent repeated queries |
 | **SQL Premium** | Higher DTUs, geo-replication | Production SLAs required |
-| **Application Insights** | Deep APM, distributed tracing | Complex debugging needs |
+| **Private Endpoints** | Network isolation | Security requirements |
 
 ---
 
 ## References
 
+- [Azure Container Apps Documentation](https://learn.microsoft.com/azure/container-apps/)
 - [Azure Data API Builder Documentation](https://learn.microsoft.com/azure/data-api-builder/)
-- [Azure Container Instances Documentation](https://learn.microsoft.com/azure/container-instances/)
 - [Azure SQL Database Documentation](https://learn.microsoft.com/azure/azure-sql/)
 - [Microsoft Entra ID Documentation](https://learn.microsoft.com/azure/active-directory/)
+- [Application Insights Documentation](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview)

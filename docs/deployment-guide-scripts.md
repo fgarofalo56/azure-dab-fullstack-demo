@@ -1,6 +1,19 @@
 # Deployment Guide: PowerShell Scripts
 
-This guide walks you through deploying the DOT Transportation Data Portal using the provided PowerShell automation scripts.
+<div align="center">
+
+![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
+![Azure CLI](https://img.shields.io/badge/Azure%20CLI-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
+![Bicep](https://img.shields.io/badge/Bicep-IaC-FF6F00?style=for-the-badge)
+
+**Automated deployment with infrastructure as code**
+
+</div>
+
+This guide walks you through deploying the DOT Transportation Data Portal using the provided PowerShell automation scripts with Azure Container Apps.
+
+> **Estimated Time:** 30-45 minutes
+> **Best For:** Developers comfortable with command-line interfaces
 
 ---
 
@@ -13,9 +26,10 @@ This guide walks you through deploying the DOT Transportation Data Portal using 
   - [2. Deploy Infrastructure (Phase 1)](#2-deploy-infrastructure-phase-1)
   - [3. Initialize Database](#3-initialize-database)
   - [4. Build and Push Containers](#4-build-and-push-containers)
-  - [5. Deploy Containers (Phase 2)](#5-deploy-containers-phase-2)
+  - [5. Deploy Container Apps (Phase 2)](#5-deploy-container-apps-phase-2)
   - [6. Verify Deployment](#6-verify-deployment)
 - [Script Reference](#script-reference)
+- [Auto-Scaling Configuration](#auto-scaling-configuration)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -39,7 +53,7 @@ Before you begin, ensure you have the following installed and configured:
 - Azure subscription with Owner or Contributor access
 - Permissions to create App Registrations in Azure AD
 - Sufficient quota for:
-  - Azure Container Instances (2 instances)
+  - Azure Container Apps (2 apps)
   - Azure SQL Database (Basic tier)
   - Azure Container Registry (Basic tier)
   - Azure Storage Account
@@ -67,7 +81,7 @@ sqlcmd -?
 
 ## Quick Start
 
-For experienced users, here's the condensed deployment flow using **two-phase deployment**:
+For experienced users, here's the condensed deployment flow:
 
 ```powershell
 # 1. Clone and navigate
@@ -77,8 +91,8 @@ cd azure-dab-fullstack-demo
 # 2. Login to Azure
 az login
 
-# 3. Deploy infrastructure ONLY (Phase 1 - skips containers)
-./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -SkipContainers
+# 3. Deploy infrastructure ONLY (Phase 1 - skips Container Apps)
+./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2" -SkipContainers
 
 # 4. Initialize database
 cd src/database
@@ -92,11 +106,11 @@ cd ../../infrastructure/scripts
 ./build-push-dab.ps1 -AcrName "<acr-name>"
 ./build-push-frontend.ps1 -AcrName "<acr-name>"
 
-# 6. Deploy containers (Phase 2 - after images are in ACR)
-./deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -ContainersOnly
+# 6. Deploy Container Apps (Phase 2)
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2"
 ```
 
-> **Why two phases?** Container instances require images to exist in ACR before deployment. The two-phase approach deploys infrastructure first, then containers after images are pushed.
+> **Why two phases?** Container Apps require images to exist in ACR before deployment. The two-phase approach deploys infrastructure first, then Container Apps after images are pushed.
 
 ---
 
@@ -158,7 +172,7 @@ Frontend Client ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ### 2. Deploy Infrastructure (Phase 1)
 
-The `deploy.ps1` script creates all Azure resources using Bicep templates. Use `-SkipContainers` to deploy infrastructure first without containers.
+The `deploy.ps1` script creates all Azure resources using Bicep templates. Use `-SkipContainers` to deploy infrastructure first without Container Apps.
 
 #### 2.1 Navigate to Scripts Directory
 
@@ -169,14 +183,14 @@ cd infrastructure/scripts
 #### 2.2 Run Deployment Script (Infrastructure Only)
 
 ```powershell
-./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
-             -Location "eastus" `
-             -BaseName "dotdemo" `
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" `
+             -Location "eastus2" `
+             -BaseName "dabdemo" `
              -Environment "dev" `
              -SkipContainers
 ```
 
-> **Important:** The `-SkipContainers` flag deploys only ACR, SQL Database, and Storage. This allows you to push container images to ACR before creating the container instances.
+> **Important:** The `-SkipContainers` flag deploys only ACR, SQL Database, and Storage. This allows you to push container images to ACR before creating the Container Apps.
 
 #### 2.3 Script Prompts
 
@@ -197,19 +211,19 @@ After successful Phase 1 deployment, the script outputs:
 Deployment completed successfully!
 ============================================
 
-Resource Group:    rg-dot-demo
-ACR Name:          acrdotdemodev
-ACR Login Server:  acrdotdemodev.azurecr.io
-SQL Server:        dotdemo-dev-sql.database.windows.net
-Database:          dotdemo-dev-db
+Resource Group:    rg-dab-demo
+ACR Name:          acrdabdemodev
+ACR Login Server:  acrdabdemodev.azurecr.io
+SQL Server:        dabdemo-dev-sql.database.windows.net
+Database:          dabdemo-dev-db
 
-Containers:        Not deployed (use -ContainersOnly after pushing images)
+Container Apps:    Not deployed (push images to ACR and run again without -SkipContainers)
 
 NEXT STEPS:
 1. Build and push the DAB container
 2. Build and push the frontend container
 3. Initialize the database schema
-4. Deploy containers with -ContainersOnly flag
+4. Deploy Container Apps (run again without -SkipContainers)
 ```
 
 These values are also saved to `deployment-outputs.json`.
@@ -227,8 +241,8 @@ cd ../../src/database
 #### 3.2 Run Initialization Script
 
 ```powershell
-./Initialize-Database.ps1 -ServerName "dotdemo-dev-sql.database.windows.net" `
-                          -DatabaseName "dotdemo-dev-db" `
+./Initialize-Database.ps1 -ServerName "dabdemo-dev-sql.database.windows.net" `
+                          -DatabaseName "dabdemo-dev-db" `
                           -Username "sqladmin" `
                           -Password "<your-sql-password>"
 ```
@@ -237,8 +251,8 @@ cd ../../src/database
 
 ```powershell
 # Connect and check record counts
-sqlcmd -S "dotdemo-dev-sql.database.windows.net" `
-       -d "dotdemo-dev-db" `
+sqlcmd -S "dabdemo-dev-sql.database.windows.net" `
+       -d "dabdemo-dev-db" `
        -U "sqladmin" `
        -P "<password>" `
        -Q "SELECT 'Categories' AS TableName, COUNT(*) AS Records FROM Categories UNION ALL SELECT 'States', COUNT(*) FROM States UNION ALL SELECT 'RailroadAccidents', COUNT(*) FROM RailroadAccidents UNION ALL SELECT 'Bridges', COUNT(*) FROM Bridges;"
@@ -263,7 +277,7 @@ Bridges              400
 ```powershell
 cd ../../infrastructure/scripts
 
-./build-push-dab.ps1 -AcrName "acrdotdemodev"
+./build-push-dab.ps1 -AcrName "acrdabdemodev"
 ```
 
 **Script actions:**
@@ -276,8 +290,8 @@ cd ../../infrastructure/scripts
 #### 4.2 Build Frontend Container
 
 ```powershell
-./build-push-frontend.ps1 -AcrName "acrdotdemodev" `
-                          -ApiBaseUrl "http://dotdemo-dev-dab.eastus.azurecontainer.io:5000/api" `
+./build-push-frontend.ps1 -AcrName "acrdabdemodev" `
+                          -ApiBaseUrl "/api" `  # Uses relative URL for Front Door routing
                           -AzureAdClientId "<frontend-client-id>" `
                           -AzureAdTenantId "<tenant-id>"
 ```
@@ -292,22 +306,21 @@ cd ../../infrastructure/scripts
 
 ```powershell
 # Tag with version number
-./build-push-dab.ps1 -AcrName "acrdotdemodev" -ImageTag "v1.0.0"
-./build-push-frontend.ps1 -AcrName "acrdotdemodev" -ImageTag "v1.0.0"
+./build-push-dab.ps1 -AcrName "acrdabdemodev" -ImageTag "v1.0.0"
+./build-push-frontend.ps1 -AcrName "acrdabdemodev" -ImageTag "v1.0.0"
 ```
 
 ---
 
-### 5. Deploy Containers (Phase 2)
+### 5. Deploy Container Apps (Phase 2)
 
-After pushing images to ACR, deploy the container instances.
+After pushing images to ACR, deploy the Container Apps.
 
-#### 5.1 Run Container Deployment
+#### 5.1 Run Container Apps Deployment
 
 ```powershell
-./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
-             -Location "eastus" `
-             -ContainersOnly
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" `
+             -Location "eastus2"
 ```
 
 The script will prompt for the same credentials as Phase 1. After successful deployment:
@@ -317,57 +330,87 @@ The script will prompt for the same credentials as Phase 1. After successful dep
 Deployment completed successfully!
 ============================================
 
-DAB URL:           http://dotdemo-dev-dab.eastus.azurecontainer.io:5000
-Frontend URL:      http://dotdemo-dev-frontend.eastus.azurecontainer.io
+Container Apps Environment:
+   Name: dabdemo-dev-cae
+
+Data API Builder Container App:
+   Name: dabdemo-dev-ca-dab
+   URL: https://dabdemo-dev-ca-dab.nicebeach-xxxxxx.eastus2.azurecontainerapps.io
+
+Frontend Container App:
+   Name: dabdemo-dev-ca-frontend
+   URL: https://dabdemo-dev-ca-frontend.nicebeach-xxxxxx.eastus2.azurecontainerapps.io
+
+Auto-Scaling Configuration:
+   Min Replicas: 0
+   Max Replicas: 10
+   Scale Threshold: 100 concurrent requests
+
+Application Insights:
+   Name: dabdemo-dev-appinsights
+
+Azure Front Door (HTTPS):
+   Hostname: dabdemodev.xxxxxx.azurefd.net
+   Frontend URL: https://dabdemodev.xxxxxx.azurefd.net    <-- USE THIS
+   REST API: https://dabdemodev.xxxxxx.azurefd.net/api
+   GraphQL: https://dabdemodev.xxxxxx.azurefd.net/graphql
+
+   ** Use the Front Door URL for HTTPS access with MSAL authentication **
 ```
 
-#### 5.2 Verify Container Status
-
-```powershell
-# Check container states
-az container show --name "dotdemo-dev-dab" --resource-group "rg-dot-demo" --query "instanceView.state"
-az container show --name "dotdemo-dev-frontend" --resource-group "rg-dot-demo" --query "instanceView.state"
-```
+> **Note:** Container Apps also provide native HTTPS URLs. You can use either the Container App URLs directly or the Front Door URL.
 
 ---
 
 ### 6. Verify Deployment
 
-#### 6.1 Restart Containers (if updating images)
-
-If you need to update container images after initial deployment:
+#### 6.1 Check Container App Status
 
 ```powershell
-# Push updated images first, then restart
-az container restart --name "dotdemo-dev-dab" --resource-group "rg-dot-demo"
-az container restart --name "dotdemo-dev-frontend" --resource-group "rg-dot-demo"
+# Check DAB Container App
+az containerapp show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --query "properties.runningStatus"
+
+# Check Frontend Container App
+az containerapp show --name "dabdemo-dev-ca-frontend" --resource-group "rg-dab-demo" --query "properties.runningStatus"
+
+# List replicas (may be 0 if scaled to zero)
+az containerapp replica list --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo"
 ```
 
-#### 5.2 Check Container Logs
+#### 6.2 Check Container Logs
 
 ```powershell
 # DAB logs
-az container logs --name "dotdemo-dev-dab" --resource-group "rg-dot-demo"
+az containerapp logs show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --follow
 
 # Frontend logs
-az container logs --name "dotdemo-dev-frontend" --resource-group "rg-dot-demo"
+az containerapp logs show --name "dabdemo-dev-ca-frontend" --resource-group "rg-dab-demo" --follow
 ```
 
-#### 5.3 Test API Endpoints
+#### 6.3 Test API Endpoints
 
 ```powershell
-# Health check (no auth required)
-Invoke-RestMethod -Uri "http://dotdemo-dev-dab.eastus.azurecontainer.io:5000/health"
+# Get Container App FQDN
+$dabFqdn = az containerapp show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --query "properties.configuration.ingress.fqdn" -o tsv
 
-# Test with token (requires authentication)
-# Use Postman or curl with Bearer token
+# Health check via Container App (HTTPS)
+Invoke-RestMethod -Uri "https://$dabFqdn/"
+
+# Or via Front Door
+$frontDoorUrl = (Get-Content ..\..\deployment-outputs.json | ConvertFrom-Json).frontDoorUrl.value
+Invoke-RestMethod -Uri "$frontDoorUrl/api/Category"
 ```
 
-#### 5.4 Access Frontend
+#### 6.4 Access Frontend
 
-Open your browser and navigate to:
+Open your browser and navigate to the **Front Door URL (HTTPS)**:
 ```
-http://dotdemo-dev-frontend.eastus.azurecontainer.io
+https://<your-front-door-endpoint>.azurefd.net
+```
+
+Or use the Container App URL directly:
+```
+https://dabdemo-dev-ca-frontend.nicebeach-xxxxxx.eastus2.azurecontainerapps.io
 ```
 
 ---
@@ -383,9 +426,11 @@ http://dotdemo-dev-frontend.eastus.azurecontainer.io
 | `-BaseName` | No | `dabdemo` | Base name for all resources |
 | `-Environment` | No | `dev` | Environment (dev, staging, prod) |
 | `-SkipContainers` | No | `false` | Deploy infrastructure only (Phase 1) |
-| `-ContainersOnly` | No | `false` | Deploy containers only (Phase 2) |
 | `-LogAnalyticsWorkspaceId` | No | See below | Full resource ID of Log Analytics workspace |
 | `-DisableDiagnostics` | No | `false` | Disable diagnostic settings for all resources |
+| `-MinReplicas` | No | `0` | Minimum container replicas (0 = scale-to-zero) |
+| `-MaxReplicas` | No | `10` | Maximum container replicas |
+| `-HttpScaleThreshold` | No | `100` | Concurrent requests to trigger scaling |
 
 **Default Log Analytics Workspace:**
 ```
@@ -397,10 +442,10 @@ http://dotdemo-dev-frontend.eastus.azurecontainer.io
 ```mermaid
 flowchart LR
     A[Phase 1<br/>-SkipContainers] --> B[Push Images<br/>to ACR]
-    B --> C[Phase 2<br/>-ContainersOnly]
+    B --> C[Phase 2<br/>Full Deploy]
 
     A --> |Creates| D[ACR<br/>SQL<br/>Storage]
-    C --> |Creates| E[ACI DAB<br/>ACI Frontend]
+    C --> |Creates| E[Container Apps<br/>App Insights<br/>Front Door]
 ```
 
 ### build-push-dab.ps1
@@ -434,6 +479,47 @@ flowchart LR
 | `-SkipSchema` | No | `false` | Skip schema creation |
 | `-SkipSeedData` | No | `false` | Skip data seeding |
 | `-Force` | No | `false` | Skip confirmation prompts |
+
+---
+
+## Auto-Scaling Configuration
+
+Container Apps use HTTP-based auto-scaling with KEDA.
+
+### Default Configuration
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Min Replicas | 0 | Scale to zero when idle |
+| Max Replicas | 10 | Maximum concurrent instances |
+| Scale Threshold | 100 | Concurrent requests per instance |
+
+### Custom Scaling
+
+```powershell
+# Production: Always keep at least 1 replica running
+./deploy.ps1 -ResourceGroupName "rg-dab-prod" `
+             -Environment "prod" `
+             -MinReplicas 1 `
+             -MaxReplicas 10 `
+             -HttpScaleThreshold 50
+
+# Cost-optimized: Aggressive scale-to-zero
+./deploy.ps1 -ResourceGroupName "rg-dab-dev" `
+             -MinReplicas 0 `
+             -MaxReplicas 3 `
+             -HttpScaleThreshold 100
+```
+
+### Monitor Scaling
+
+```powershell
+# Check current replica count
+az containerapp replica list --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" -o table
+
+# Watch scaling events
+az containerapp logs show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --type system
+```
 
 ---
 
@@ -479,55 +565,50 @@ ERROR: A network-related or instance-specific error occurred
 2. Check SQL Server name is correct (include `.database.windows.net`)
 3. Verify username and password
 
-#### Image Not Accessible Error
+#### Image Not Found in Container App
 
 ```
-ERROR: The image 'acr.azurecr.io/dab:latest' in container group is not accessible
+ERROR: The container 'dab' in the pod failed to start
 ```
 
-**Cause:** Trying to deploy containers before images exist in ACR.
+**Cause:** Trying to deploy Container Apps before images exist in ACR.
 
 **Solution:** Use two-phase deployment:
 1. Deploy with `-SkipContainers` first
 2. Build and push images to ACR
-3. Deploy with `-ContainersOnly`
+3. Deploy again without `-SkipContainers`
 
-#### Container Won't Start
+#### Container App Cold Start
 
-```powershell
-# Check container events
-az container show --name "<container-name>" --resource-group "<rg>" --query "containers[0].instanceView.events"
-```
+Container Apps with `minReplicas=0` will have a cold start delay (~2-5 seconds) on first request.
 
-**Common causes:**
-- Image not found (check ACR name and image tag)
-- Environment variables missing
-- Port already in use
-
----
+**Solutions:**
+- Set `minReplicas=1` for production
+- Use health probes to pre-warm containers
+- Accept cold start for cost savings in dev/test
 
 ---
 
 ## Diagnostics & Monitoring
 
-The deployment automatically configures diagnostic settings for all resources, sending logs and metrics to Log Analytics.
+The deployment automatically configures diagnostic settings for all resources, including Application Insights for APM.
 
 ### Resources with Diagnostics Enabled
 
 | Resource | Logs | Metrics |
 |----------|------|---------|
 | Azure Container Registry | All logs | All metrics |
-| Storage Account (Blob/File) | All logs | Transaction metrics |
 | Azure SQL Database | SQLInsights, Errors, Deadlocks, Timeouts, Blocks | Basic, Advanced |
-| Container Instances | Container logs | - |
+| Container Apps | Console logs via environment | Via App Insights |
+| Application Insights | Requests, Dependencies, Exceptions | Performance |
 
 ### Custom Log Analytics Workspace
 
 To use a different Log Analytics workspace:
 
 ```powershell
-./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
-             -Location "eastus" `
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" `
+             -Location "eastus2" `
              -LogAnalyticsWorkspaceId "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}"
 ```
 
@@ -536,8 +617,8 @@ To use a different Log Analytics workspace:
 To deploy without diagnostic settings:
 
 ```powershell
-./deploy.ps1 -ResourceGroupName "rg-dot-demo" `
-             -Location "eastus" `
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" `
+             -Location "eastus2" `
              -DisableDiagnostics
 ```
 
@@ -546,11 +627,17 @@ To deploy without diagnostic settings:
 Example KQL queries for the Log Analytics workspace:
 
 ```kusto
-// Container Instance logs (DAB)
-ContainerInstanceLog_CL
-| where ContainerGroup_s contains "dab"
+// Container App console logs (DAB)
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s contains "dab"
 | order by TimeGenerated desc
 | take 100
+
+// Application Insights - Failed requests
+requests
+| where success == false
+| summarize count() by name, resultCode
+| order by count_ desc
 
 // SQL Database errors
 AzureDiagnostics
@@ -571,9 +658,9 @@ ContainerRegistryRepositoryEvents
 After successful deployment:
 
 1. **Configure DNS** - Set up custom domain names
-2. **Enable HTTPS** - Add SSL certificates
-3. **Review monitoring dashboards** - Check Log Analytics for container and SQL logs
-4. **Set up alerts** - Configure Azure Monitor alerts for errors and performance
-5. **Review security** - Audit CORS, authentication, and network rules
+2. **Review monitoring dashboards** - Check Application Insights and Log Analytics
+3. **Set up alerts** - Configure Azure Monitor alerts for errors and performance
+4. **Review security** - Audit CORS, authentication, and network rules
+5. **Set up CI/CD** - Configure GitHub Actions for automated deployments
 
-See [Security Hardening Guide](./security-guide.md) for production recommendations.
+See [CI/CD Guide](./ci-cd-guide.md) for setting up GitHub Actions.

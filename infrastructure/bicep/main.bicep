@@ -1,5 +1,5 @@
 // Azure Data API Builder Full-Stack Demo
-// Main deployment template
+// Main deployment template - Container Apps Architecture
 
 targetScope = 'resourceGroup'
 
@@ -50,6 +50,21 @@ param enableDiagnostics bool = true
 @description('Deploy Azure Front Door for HTTPS support')
 param deployFrontDoor bool = true
 
+// Container Apps Scaling Parameters
+@description('Minimum number of container replicas (0 enables scale-to-zero)')
+@minValue(0)
+@maxValue(10)
+param minReplicas int = 0
+
+@description('Maximum number of container replicas')
+@minValue(1)
+@maxValue(10)
+param maxReplicas int = 10
+
+@description('Number of concurrent HTTP requests to trigger scaling')
+@minValue(1)
+param httpScaleThreshold int = 100
+
 // ============================================================================
 // Variables
 // ============================================================================
@@ -60,10 +75,15 @@ var sqlServerName = '${resourcePrefix}-sql'
 var sqlDbName = '${resourcePrefix}-db'
 var storageAccountName = replace('st${baseName}${environment}', '-', '')
 var fileShareName = 'dab-data'
-var aciDabName = '${resourcePrefix}-dab'
-var aciFrontendName = '${resourcePrefix}-frontend'
+var containerAppEnvName = '${resourcePrefix}-cae'
+var dabContainerAppName = '${resourcePrefix}-ca-dab'
+var frontendContainerAppName = '${resourcePrefix}-ca-frontend'
+var appInsightsName = '${resourcePrefix}-appinsights'
 var frontDoorName = '${resourcePrefix}-fd'
 var frontDoorEndpointName = '${baseName}${environment}'
+
+// Database connection string
+var databaseConnectionString = 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};Persist Security Info=False;User ID=${sqlAdminUsername};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
 
 // ============================================================================
 // Azure Container Registry
@@ -103,7 +123,7 @@ resource acrDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-previe
 }
 
 // ============================================================================
-// Storage Account (for persistent storage)
+// Storage Account (for persistent storage - optional with Container Apps)
 // ============================================================================
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -311,38 +331,127 @@ resource sqlServerAudit 'Microsoft.Sql/servers/auditingSettings@2023-05-01-previ
 }
 
 // ============================================================================
-// Azure Container Instance - Data API Builder
+// Application Insights
 // ============================================================================
 
-resource aciDab 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = if (deployContainers) {
-  name: aciDabName
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = if (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalyticsWorkspaceId
+    IngestionMode: 'LogAnalytics'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+  }
+}
+
+// ============================================================================
+// Reference Existing Log Analytics Workspace (supports cross-subscription)
+// ============================================================================
+
+// Extract subscription, resource group, and workspace name from the resource ID
+// Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}
+var logAnalyticsSubscriptionId = !empty(logAnalyticsWorkspaceId) ? split(logAnalyticsWorkspaceId, '/')[2] : ''
+var logAnalyticsResourceGroup = !empty(logAnalyticsWorkspaceId) ? split(logAnalyticsWorkspaceId, '/')[4] : ''
+var logAnalyticsWorkspaceName = !empty(logAnalyticsWorkspaceId) ? split(logAnalyticsWorkspaceId, '/')[8] : ''
+
+resource existingLogAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = if (!empty(logAnalyticsWorkspaceId)) {
+  name: logAnalyticsWorkspaceName
+  scope: resourceGroup(logAnalyticsSubscriptionId, logAnalyticsResourceGroup)
+}
+
+// ============================================================================
+// Container Apps Managed Environment
+// ============================================================================
+
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = if (deployContainers) {
+  name: containerAppEnvName
   location: location
   properties: {
-    containers: [
-      {
-        name: 'dab'
-        properties: {
-          image: '${acr.properties.loginServer}/dab:${imageTag}'
-          ports: [
-            {
-              port: 5000
-              protocol: 'TCP'
-            }
+    appLogsConfiguration: !empty(logAnalyticsWorkspaceId) ? {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: existingLogAnalytics.properties.customerId
+        sharedKey: existingLogAnalytics.listKeys().primarySharedKey
+      }
+    } : null
+    daprAIConnectionString: (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) ? appInsights.properties.ConnectionString : null
+    zoneRedundant: false
+  }
+}
+
+// ============================================================================
+// Container App - Data API Builder
+// ============================================================================
+
+resource dabContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployContainers) {
+  name: dabContainerAppName
+  location: location
+  properties: {
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      activeRevisionsMode: 'Single'
+      ingress: {
+        external: true
+        targetPort: 5000
+        transport: 'http'
+        allowInsecure: false
+        corsPolicy: {
+          allowedOrigins: [
+            '*'
           ]
+          allowedMethods: [
+            'GET'
+            'POST'
+            'PUT'
+            'PATCH'
+            'DELETE'
+            'OPTIONS'
+          ]
+          allowedHeaders: [
+            '*'
+          ]
+          allowCredentials: true
+          maxAge: 3600
+        }
+      }
+      registries: [
+        {
+          server: acr.properties.loginServer
+          username: acr.listCredentials().username
+          passwordSecretRef: 'acr-password'
+        }
+      ]
+      secrets: [
+        {
+          name: 'acr-password'
+          value: acr.listCredentials().passwords[0].value
+        }
+        {
+          name: 'database-connection-string'
+          value: databaseConnectionString
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'dab'
+          image: '${acr.properties.loginServer}/dab:${imageTag}'
           resources: {
-            requests: {
-              cpu: 1
-              memoryInGB: json('1.5')
-            }
+            cpu: json('1.0')
+            memory: '2Gi'
           }
-          environmentVariables: [
+          env: [
             {
               name: 'ASPNETCORE_ENVIRONMENT'
               value: 'Production'
             }
             {
               name: 'DATABASE_CONNECTION_STRING'
-              secureValue: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};Persist Security Info=False;User ID=${sqlAdminUsername};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+              secretRef: 'database-connection-string'
             }
             {
               name: 'AZURE_AD_TENANT_ID'
@@ -352,134 +461,138 @@ resource aciDab 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = if (d
               name: 'AZURE_AD_CLIENT_ID'
               value: dabClientId
             }
-          ]
-          volumeMounts: [
             {
-              name: 'config-volume'
-              mountPath: '/app/config'
-              readOnly: false
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) ? appInsights.properties.ConnectionString : ''
+            }
+          ]
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/'
+                port: 5000
+              }
+              initialDelaySeconds: 30
+              periodSeconds: 30
+              failureThreshold: 3
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/'
+                port: 5000
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              failureThreshold: 3
             }
           ]
         }
-      }
-    ]
-    osType: 'Linux'
-    restartPolicy: 'Always'
-    ipAddress: {
-      type: 'Public'
-      ports: [
-        {
-          port: 5000
-          protocol: 'TCP'
-        }
       ]
-      dnsNameLabel: aciDabName
+      scale: {
+        minReplicas: minReplicas
+        maxReplicas: maxReplicas
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: string(httpScaleThreshold)
+              }
+            }
+          }
+        ]
+      }
     }
-    imageRegistryCredentials: [
-      {
-        server: acr.properties.loginServer
-        username: acr.listCredentials().username
-        password: acr.listCredentials().passwords[0].value
-      }
-    ]
-    volumes: [
-      {
-        name: 'config-volume'
-        azureFile: {
-          shareName: fileShareName
-          storageAccountName: storageAccount.name
-          storageAccountKey: storageAccount.listKeys().keys[0].value
-        }
-      }
-    ]
-    diagnostics: enableDiagnostics && !empty(logAnalyticsWorkspaceId) ? {
-      logAnalytics: {
-        workspaceId: split(logAnalyticsWorkspaceId, '/')[8]
-        workspaceKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
-        logType: 'ContainerInstanceLogs'
-      }
-    } : null
   }
   dependsOn: [
-    fileShare
     sqlDatabase
   ]
 }
 
 // ============================================================================
-// Azure Container Instance - Frontend
+// Container App - Frontend
 // ============================================================================
 
-resource aciFrontend 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = if (deployContainers) {
-  name: aciFrontendName
+resource frontendContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployContainers) {
+  name: frontendContainerAppName
   location: location
   properties: {
-    containers: [
-      {
-        name: 'frontend'
-        properties: {
-          image: '${acr.properties.loginServer}/frontend:${imageTag}'
-          ports: [
-            {
-              port: 80
-              protocol: 'TCP'
-            }
-          ]
-          resources: {
-            requests: {
-              cpu: json('0.5')
-              memoryInGB: json('0.5')
-            }
-          }
-          environmentVariables: [
-            {
-              name: 'VITE_API_BASE_URL'
-              value: 'http://${aciDab.properties.ipAddress.fqdn}:5000/api'
-            }
-            {
-              name: 'VITE_GRAPHQL_URL'
-              value: 'http://${aciDab.properties.ipAddress.fqdn}:5000/graphql'
-            }
-            {
-              name: 'VITE_AZURE_AD_CLIENT_ID'
-              value: frontendClientId
-            }
-            {
-              name: 'VITE_AZURE_AD_TENANT_ID'
-              value: tenantId
-            }
-          ]
-        }
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      activeRevisionsMode: 'Single'
+      ingress: {
+        external: true
+        targetPort: 80
+        transport: 'http'
+        allowInsecure: false
       }
-    ]
-    osType: 'Linux'
-    restartPolicy: 'Always'
-    ipAddress: {
-      type: 'Public'
-      ports: [
+      registries: [
         {
-          port: 80
-          protocol: 'TCP'
+          server: acr.properties.loginServer
+          username: acr.listCredentials().username
+          passwordSecretRef: 'acr-password'
         }
       ]
-      dnsNameLabel: aciFrontendName
+      secrets: [
+        {
+          name: 'acr-password'
+          value: acr.listCredentials().passwords[0].value
+        }
+      ]
     }
-    imageRegistryCredentials: [
-      {
-        server: acr.properties.loginServer
-        username: acr.listCredentials().username
-        password: acr.listCredentials().passwords[0].value
+    template: {
+      containers: [
+        {
+          name: 'frontend'
+          image: '${acr.properties.loginServer}/frontend:${imageTag}'
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          // Note: VITE_* variables are baked into the frontend at Docker build time (see Dockerfile).
+          // The frontend uses relative URLs (/api, /graphql) by default, which work with Front Door routing.
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/'
+                port: 80
+              }
+              initialDelaySeconds: 10
+              periodSeconds: 30
+              failureThreshold: 3
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/'
+                port: 80
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 3
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: minReplicas
+        maxReplicas: maxReplicas
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: string(httpScaleThreshold)
+              }
+            }
+          }
+        ]
       }
-    ]
-    diagnostics: enableDiagnostics && !empty(logAnalyticsWorkspaceId) ? {
-      logAnalytics: {
-        workspaceId: split(logAnalyticsWorkspaceId, '/')[8]
-        workspaceKey: listKeys(logAnalyticsWorkspaceId, '2022-10-01').primarySharedKey
-        logType: 'ContainerInstanceLogs'
-      }
-    } : null
+    }
   }
-  // Note: Implicit dependency on aciDab via property reference (aciDab.properties.ipAddress.fqdn)
 }
 
 // ============================================================================
@@ -520,7 +633,7 @@ resource frontDoorOriginGroupFrontend 'Microsoft.Cdn/profiles/originGroups@2023-
     healthProbeSettings: {
       probePath: '/'
       probeRequestType: 'HEAD'
-      probeProtocol: 'Http'
+      probeProtocol: 'Https'
       probeIntervalInSeconds: 100
     }
     sessionAffinityState: 'Disabled'
@@ -540,37 +653,37 @@ resource frontDoorOriginGroupDab 'Microsoft.Cdn/profiles/originGroups@2023-05-01
     healthProbeSettings: {
       probePath: '/'
       probeRequestType: 'HEAD'
-      probeProtocol: 'Http'
+      probeProtocol: 'Https'
       probeIntervalInSeconds: 100
     }
     sessionAffinityState: 'Disabled'
   }
 }
 
-// Origin - Frontend Container
+// Origin - Frontend Container App
 resource frontDoorOriginFrontend 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = if (deployFrontDoor && deployContainers) {
   parent: frontDoorOriginGroupFrontend
   name: 'frontend-origin'
   properties: {
-    hostName: aciFrontend.properties.ipAddress.fqdn
+    hostName: frontendContainerApp.properties.configuration.ingress.fqdn
     httpPort: 80
     httpsPort: 443
-    originHostHeader: aciFrontend.properties.ipAddress.fqdn
+    originHostHeader: frontendContainerApp.properties.configuration.ingress.fqdn
     priority: 1
     weight: 1000
     enabledState: 'Enabled'
   }
 }
 
-// Origin - DAB Container
+// Origin - DAB Container App
 resource frontDoorOriginDab 'Microsoft.Cdn/profiles/originGroups/origins@2023-05-01' = if (deployFrontDoor && deployContainers) {
   parent: frontDoorOriginGroupDab
   name: 'dab-origin'
   properties: {
-    hostName: aciDab.properties.ipAddress.fqdn
-    httpPort: 5000
+    hostName: dabContainerApp.properties.configuration.ingress.fqdn
+    httpPort: 80
     httpsPort: 443
-    originHostHeader: aciDab.properties.ipAddress.fqdn
+    originHostHeader: dabContainerApp.properties.configuration.ingress.fqdn
     priority: 1
     weight: 1000
     enabledState: 'Enabled'
@@ -592,7 +705,7 @@ resource frontDoorRouteFrontend 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023
     patternsToMatch: [
       '/*'
     ]
-    forwardingProtocol: 'HttpOnly'
+    forwardingProtocol: 'HttpsOnly'
     linkToDefaultDomain: 'Enabled'
     httpsRedirect: 'Enabled'
   }
@@ -618,7 +731,7 @@ resource frontDoorRouteApi 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-05-0
       '/graphql'
       '/graphql/*'
     ]
-    forwardingProtocol: 'HttpOnly'
+    forwardingProtocol: 'HttpsOnly'
     linkToDefaultDomain: 'Enabled'
     httpsRedirect: 'Enabled'
   }
@@ -653,16 +766,39 @@ resource frontDoorDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-
 // Outputs
 // ============================================================================
 
+// Core Infrastructure
 output acrLoginServer string = acr.properties.loginServer
 output acrName string = acr.name
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDatabaseName string = sqlDatabase.name
 output storageAccountName string = storageAccount.name
 output containersDeployed bool = deployContainers
-output dabFqdn string = deployContainers ? aciDab.properties.ipAddress.fqdn : ''
-output dabUrl string = deployContainers ? 'http://${aciDab.properties.ipAddress.fqdn}:5000' : ''
-output frontendFqdn string = deployContainers ? aciFrontend.properties.ipAddress.fqdn : ''
-output frontendUrl string = deployContainers ? 'http://${aciFrontend.properties.ipAddress.fqdn}' : ''
+
+// Container Apps Environment
+output containerAppEnvironmentName string = deployContainers ? containerAppEnv.name : ''
+output containerAppEnvironmentId string = deployContainers ? containerAppEnv.id : ''
+
+// DAB Container App
+output dabContainerAppName string = deployContainers ? dabContainerApp.name : ''
+output dabContainerAppFqdn string = deployContainers ? dabContainerApp.properties.configuration.ingress.fqdn : ''
+output dabContainerAppUrl string = deployContainers ? 'https://${dabContainerApp.properties.configuration.ingress.fqdn}' : ''
+
+// Frontend Container App
+output frontendContainerAppName string = deployContainers ? frontendContainerApp.name : ''
+output frontendContainerAppFqdn string = deployContainers ? frontendContainerApp.properties.configuration.ingress.fqdn : ''
+output frontendContainerAppUrl string = deployContainers ? 'https://${frontendContainerApp.properties.configuration.ingress.fqdn}' : ''
+
+// Application Insights
+output appInsightsName string = (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) ? appInsights.name : ''
+output appInsightsConnectionString string = (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) ? appInsights.properties.ConnectionString : ''
+output appInsightsInstrumentationKey string = (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) ? appInsights.properties.InstrumentationKey : ''
+
+// Auto-scaling Configuration
+output scalingMinReplicas int = minReplicas
+output scalingMaxReplicas int = maxReplicas
+output scalingHttpThreshold int = httpScaleThreshold
+
+// Front Door URLs (HTTPS) - use these for production access
 output frontDoorDeployed bool = deployFrontDoor && deployContainers
 output frontDoorHostname string = (deployFrontDoor && deployContainers) ? frontDoorEndpoint.properties.hostName : ''
 output frontDoorUrl string = (deployFrontDoor && deployContainers) ? 'https://${frontDoorEndpoint.properties.hostName}' : ''

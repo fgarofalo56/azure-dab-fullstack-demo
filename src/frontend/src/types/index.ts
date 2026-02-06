@@ -24,12 +24,20 @@ export interface Category {
 }
 
 export interface CategorySummary {
-  categoryId: number;
-  categoryName: string;
-  description: string;
-  icon: string;
-  color: string;
-  recordCount: number;
+  // Note: DAB returns PascalCase field names from the database
+  CategoryId: number;
+  CategoryName: string;
+  Description: string;
+  Icon: string;
+  Color: string;
+  RecordCount: number;
+  // Also support camelCase for compatibility
+  categoryId?: number;
+  categoryName?: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  recordCount?: number;
 }
 
 // State types

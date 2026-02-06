@@ -3,7 +3,7 @@
  * Handles REST and GraphQL communication with Data API Builder
  */
 
-import { IPublicClientApplication, AccountInfo } from '@azure/msal-browser';
+import { IPublicClientApplication, AccountInfo, InteractionRequiredAuthError } from '@azure/msal-browser';
 
 // Types
 export interface ApiConfig {
@@ -37,40 +37,81 @@ export const defaultConfig: ApiConfig = {
 };
 
 /**
- * Get access token from MSAL
+ * Get access token from MSAL with proper error handling and fallback to interactive login.
+ *
+ * This function:
+ * 1. First tries silent token acquisition from cache
+ * 2. If silent fails with InteractionRequiredAuthError, falls back to popup
+ * 3. If popup fails or is blocked, falls back to redirect
+ * 4. Throws an error with a user-friendly message if all methods fail
  */
 export async function getAccessToken(
   msalInstance: IPublicClientApplication,
   account: AccountInfo,
   scopes: string[]
 ): Promise<string> {
-  const response = await msalInstance.acquireTokenSilent({
-    scopes,
-    account,
-  });
-  return response.accessToken;
+  try {
+    // First, try silent token acquisition
+    const response = await msalInstance.acquireTokenSilent({
+      scopes,
+      account,
+    });
+    return response.accessToken;
+  } catch (silentError) {
+    // If silent acquisition fails, check if interaction is required
+    if (silentError instanceof InteractionRequiredAuthError) {
+      console.warn('Silent token acquisition failed, attempting popup login...');
+
+      try {
+        // Try popup first (better UX than redirect)
+        const response = await msalInstance.acquireTokenPopup({
+          scopes,
+          account,
+        });
+        return response.accessToken;
+      } catch (popupError) {
+        console.warn('Popup login failed, attempting redirect login...');
+
+        // Popup might be blocked or fail, try redirect as last resort
+        // This will navigate away from the current page
+        await msalInstance.acquireTokenRedirect({
+          scopes,
+          account,
+        });
+
+        // This line won't be reached as redirect navigates away
+        throw new Error('Redirecting to login...');
+      }
+    }
+
+    // For other errors (network, etc.), rethrow with context
+    console.error('Token acquisition failed:', silentError);
+    throw new Error(
+      `Authentication failed: ${silentError instanceof Error ? silentError.message : 'Unknown error'}. Please try signing out and signing back in.`
+    );
+  }
 }
 
 /**
- * Build OData query string from pagination params
+ * Build DAB REST API query string from pagination params
+ * Note: DAB uses $first instead of $top, and cursor-based pagination with $after
  */
 export function buildODataQuery(params: PaginationParams): string {
   const queryParts: string[] = [];
 
+  // DAB uses $first instead of $top
   if (params.top !== undefined) {
-    queryParts.push(`$top=${params.top}`);
+    queryParts.push(`$first=${params.top}`);
   }
-  if (params.skip !== undefined) {
-    queryParts.push(`$skip=${params.skip}`);
-  }
+  // Note: DAB doesn't support $skip - it uses cursor-based pagination with $after
+  // For now, we'll fetch all data up to the page we need (not ideal but works for demo)
   if (params.orderBy) {
     queryParts.push(`$orderby=${encodeURIComponent(params.orderBy)}`);
   }
   if (params.filter) {
     queryParts.push(`$filter=${encodeURIComponent(params.filter)}`);
   }
-  // Always request count for pagination
-  queryParts.push('$count=true');
+  // Note: DAB doesn't support $count=true in REST API
 
   return queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 }

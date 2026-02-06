@@ -10,35 +10,35 @@ A comprehensive demonstration of Azure Data API Builder (DAB) showcasing real-wo
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#0078D4', 'primaryTextColor': '#fff', 'primaryBorderColor': '#005A9E', 'lineColor': '#333', 'secondaryColor': '#50E6FF', 'tertiaryColor': '#F3F2F1'}}}%%
 flowchart TB
     subgraph Internet[" "]
-        User(["👤 User<br/>Web Browser"])
+        User(["User<br/>Web Browser"])
     end
 
-    subgraph Azure["☁️ Microsoft Azure"]
-        subgraph FrontDoor["🌐 Azure Front Door"]
+    subgraph Azure["Microsoft Azure"]
+        subgraph FrontDoor["Azure Front Door"]
             AFD["Global Load Balancer<br/>Managed SSL/TLS<br/>HTTPS Termination"]
         end
 
-        subgraph RG["📦 Resource Group"]
-            subgraph Compute["Container Instances"]
-                Frontend["🖥️ React Frontend<br/>Nginx + React 18<br/>TypeScript + Tailwind"]
-                DAB["⚡ Data API Builder<br/>REST + GraphQL<br/>Auto-generated APIs"]
+        subgraph RG["Resource Group"]
+            subgraph CAE["Container Apps Environment"]
+                Frontend["Frontend Container App<br/>React 18 + Nginx<br/>Auto-scaling 0-10"]
+                DAB["DAB Container App<br/>REST + GraphQL<br/>Auto-scaling 0-10"]
             end
 
             subgraph Data["Data Layer"]
-                SQL[("💾 Azure SQL<br/>DOT Transportation Data<br/>~1,300 Records")]
-                Storage["📁 Storage Account<br/>File Share<br/>DAB Configuration"]
+                SQL[("Azure SQL<br/>DOT Transportation Data<br/>~1,300 Records")]
             end
 
             subgraph Registry["Container Registry"]
-                ACR["📦 ACR<br/>dab:latest<br/>frontend:latest"]
+                ACR["ACR<br/>dab:latest<br/>frontend:latest"]
             end
 
             subgraph Monitoring["Observability"]
-                LAW["📊 Log Analytics<br/>Diagnostics & Metrics<br/>KQL Queries"]
+                AppInsights["Application Insights<br/>APM & Telemetry"]
+                LAW["Log Analytics<br/>Diagnostics & Metrics"]
             end
         end
 
-        subgraph Identity["🔐 Microsoft Entra ID"]
+        subgraph Identity["Microsoft Entra ID"]
             EntraID["OAuth 2.0 / OIDC<br/>JWT Authentication<br/>Tenant-only Access"]
         end
     end
@@ -48,27 +48,26 @@ flowchart TB
     AFD -->|"Route: /api/*"| DAB
     Frontend <-->|"REST/GraphQL"| DAB
     DAB -->|"TDS"| SQL
-    DAB -.->|"Config Mount"| Storage
     Frontend -.->|"Auth"| EntraID
     DAB -.->|"JWT Validation"| EntraID
     ACR -.->|"Pull Images"| Frontend
     ACR -.->|"Pull Images"| DAB
-    Frontend -.->|"Logs"| LAW
-    DAB -.->|"Logs"| LAW
+    Frontend -.->|"Telemetry"| AppInsights
+    DAB -.->|"Telemetry"| AppInsights
     SQL -.->|"Diagnostics"| LAW
 
     style Azure fill:#E6F2FF,stroke:#0078D4,stroke-width:2px
     style RG fill:#F0FAFF,stroke:#50E6FF,stroke-width:2px
     style FrontDoor fill:#FFE6E8,stroke:#E81123,stroke-width:2px
     style Identity fill:#FFF8E6,stroke:#FFB900,stroke-width:2px
-    style Compute fill:#DFF6DD,stroke:#107C10,stroke-width:1px
+    style CAE fill:#DFF6DD,stroke:#107C10,stroke-width:1px
     style Data fill:#E6F2FF,stroke:#0078D4,stroke-width:1px
     style Monitoring fill:#E6FFF5,stroke:#008272,stroke-width:1px
     style Registry fill:#F3E8FF,stroke:#5C2D91,stroke-width:1px
 ```
 
 <details>
-<summary>📷 Static Architecture Diagram (SVG)</summary>
+<summary>Static Architecture Diagram (SVG)</summary>
 
 For platforms that don't render Mermaid, view the [architecture.svg](assets/architecture.svg) file, or open [architecture.excalidraw](assets/architecture.excalidraw) in [Excalidraw](https://excalidraw.com) for editing.
 
@@ -76,14 +75,14 @@ For platforms that don't render Mermaid, view the [architecture.svg](assets/arch
 
 | Component | Azure Service | Purpose |
 |-----------|--------------|---------|
-| 🌐 **Front Door** | Azure Front Door | Global HTTPS load balancer with managed SSL certificates |
-| 🖥️ **Frontend** | Container Instance | React 18 + TypeScript DOT-themed portal |
-| ⚡ **API** | Container Instance | Data API Builder with REST + GraphQL endpoints |
-| 💾 **Database** | Azure SQL Database | Transportation data with ~1,300 sample records |
-| 📦 **Registry** | Container Registry | Private container image storage |
-| 📁 **Storage** | Storage Account | Persistent DAB configuration file share |
-| 📊 **Monitoring** | Log Analytics | Centralized diagnostics and metrics |
-| 🔐 **Identity** | Microsoft Entra ID | OAuth 2.0 authentication with tenant restriction |
+| **Front Door** | Azure Front Door | Global HTTPS load balancer with managed SSL certificates |
+| **Frontend** | Container Apps | React 18 + TypeScript DOT-themed portal with auto-scaling |
+| **API** | Container Apps | Data API Builder with REST + GraphQL, scale-to-zero |
+| **Database** | Azure SQL Database | Transportation data with ~1,300 sample records |
+| **Registry** | Container Registry | Private container image storage |
+| **App Insights** | Application Insights | Application performance monitoring and telemetry |
+| **Monitoring** | Log Analytics | Centralized diagnostics and metrics |
+| **Identity** | Microsoft Entra ID | OAuth 2.0 authentication with tenant restriction |
 
 For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
@@ -93,10 +92,10 @@ For detailed architecture documentation, see [docs/architecture.md](docs/archite
 
 | Category | Icon | Data Source | Description |
 |----------|------|-------------|-------------|
-| **Railroads** | 🚂 | FRA Form 54 | Federal Railroad Administration accident data |
-| **Bridges** | 🌉 | NBI | National Bridge Inventory structural conditions |
-| **Public Transit** | 🚌 | NTD | National Transit Database agency metrics |
-| **Automobiles** | 🚗 | FARS | NHTSA Fatality Analysis Reporting System |
+| **Railroads** | Train | FRA Form 54 | Federal Railroad Administration accident data |
+| **Bridges** | Bridge | NBI | National Bridge Inventory structural conditions |
+| **Public Transit** | Bus | NTD | National Transit Database agency metrics |
+| **Automobiles** | Car | FARS | NHTSA Fatality Analysis Reporting System |
 
 ## Features
 
@@ -105,20 +104,25 @@ For detailed architecture documentation, see [docs/architecture.md](docs/archite
 - **Transportation Data Model**: Realistic DOT data patterns with 1,300+ sample records
 - **Category-Based Navigation**: Browse data by Railroads, Bridges, Transit, or Automobiles
 - **State-Level Analysis**: All data linked to US states with regional groupings
-- **Azure Container Instances**: Serverless container hosting
+- **Azure Container Apps**: Auto-scaling container hosting with scale-to-zero
+- **HTTP-Based Auto-Scaling**: 0-10 replicas based on concurrent requests
 - **Azure Front Door**: Global HTTPS load balancer with managed SSL certificates
+- **Application Insights**: Full APM telemetry and distributed tracing
 - **Entra ID Authentication**: Secure tenant-only access control
 - **Infrastructure as Code**: Complete Bicep deployment scripts
+- **GitHub Actions CI/CD**: Automated build and deployment pipeline
 - **Comprehensive Monitoring**: Diagnostic logs and metrics sent to Log Analytics
 
 ## Prerequisites
 
 - [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli) (v2.50+)
 - [Node.js](https://nodejs.org/) (v18+ LTS)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) - **Optional!** See [Cloud Shell Deployment](docs/cloud-shell-deployment-guide.md) for Docker-free deployment
 - Azure subscription with resource creation permissions
 - Azure AD tenant membership
 - SQL Server tools (sqlcmd or SSMS)
+
+> **No Docker Desktop?** You can deploy this entire solution using [Azure Cloud Shell](docs/cloud-shell-deployment-guide.md) with ACR Tasks to build container images directly in Azure.
 
 ## Quick Start
 
@@ -129,14 +133,14 @@ git clone https://github.com/<your-username>/azure-dab-fullstack-demo.git
 cd azure-dab-fullstack-demo
 ```
 
-### 2. Deploy Infrastructure (Phase 1)
+### 2. Deploy Infrastructure
 
 ```powershell
 # Login to Azure
 az login
 
-# Deploy infrastructure only (ACR, SQL, Storage - no containers yet)
-./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dlz-dab-dev-eastus2" -Location "eastus2" -SkipContainers
+# Deploy infrastructure (ACR, SQL, Storage - skip Container Apps until images exist)
+./infrastructure/scripts/deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2" -SkipContainers
 ```
 
 The script will prompt for SQL password and Azure AD app registration IDs.
@@ -165,11 +169,11 @@ cd infrastructure/scripts
 ./build-push-frontend.ps1 -AcrName "<your-acr-name>"
 ```
 
-### 5. Deploy Containers (Phase 2)
+### 5. Deploy Container Apps
 
 ```powershell
-# Deploy container instances (after images are in ACR)
-./deploy.ps1 -ResourceGroupName "rg-dot-demo" -Location "eastus" -ContainersOnly
+# Deploy Container Apps with auto-scaling (0-10 replicas)
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2"
 ```
 
 ### 6. Access the Application
@@ -179,9 +183,30 @@ After deployment completes, use the **Azure Front Door URL (HTTPS)** for product
 - **DAB REST API**: `https://<front-door-hostname>/api/`
 - **DAB GraphQL**: `https://<front-door-hostname>/graphql`
 
-> **Note**: MSAL authentication requires HTTPS. Direct HTTP access to ACI containers is for development/debugging only.
+> **Note**: MSAL authentication requires HTTPS. The Container Apps also provide native HTTPS URLs if Front Door is not deployed.
 
-**Important**: After Front Door is deployed, update your Azure AD App Registration to add the Front Door URL as a redirect URI.
+**Important**: After deployment, update your Azure AD App Registration to add the Front Door URL as a redirect URI.
+
+## Auto-Scaling
+
+Container Apps automatically scale based on HTTP traffic:
+
+| Configuration | Default | Description |
+|--------------|---------|-------------|
+| **Min Replicas** | 0 | Scale to zero when idle (cost savings) |
+| **Max Replicas** | 10 | Maximum concurrent instances |
+| **Scale Threshold** | 100 | Concurrent requests per instance to trigger scale-out |
+
+Customize scaling with deployment parameters:
+
+```powershell
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" `
+             -MinReplicas 1 `
+             -MaxReplicas 5 `
+             -HttpScaleThreshold 50
+```
+
+For more details, see [docs/auto-scaling-guide.md](docs/auto-scaling-guide.md).
 
 ## API Endpoints
 
@@ -225,11 +250,15 @@ GET /api/Bridge?$filter=overallCondition eq 'Poor'&$top=10&$orderby=yearBuilt
 ```
 azure-dab-fullstack-demo/
 ├── .github/workflows/         # CI/CD pipelines
+│   └── deploy.yml             # GitHub Actions workflow
 ├── assets/
 │   ├── architecture.svg       # Architecture diagram
 │   └── architecture.excalidraw # Editable source
 ├── docs/
 │   ├── architecture.md        # System architecture (Mermaid)
+│   ├── auto-scaling-guide.md  # Auto-scaling configuration
+│   ├── ci-cd-guide.md         # GitHub Actions documentation
+│   ├── container-apps-portal-guide.md  # Portal deployment guide
 │   ├── dab-configuration-guide.md  # DAB setup & extension guide
 │   ├── deployment-guide-portal.md  # Manual Azure Portal deployment
 │   └── deployment-guide-scripts.md # PowerShell deployment guide
@@ -304,19 +333,24 @@ All Azure resources are configured to send diagnostic logs and metrics to Log An
 
 | Resource | Logs Enabled |
 |----------|-------------|
+| **Container Apps** | Console logs, system logs via Log Analytics |
+| **Application Insights** | Request telemetry, dependencies, exceptions |
 | **Azure Container Registry** | All logs, metrics |
-| **Storage Account** | Blob/File service logs, transaction metrics |
 | **Azure SQL Database** | Query insights, errors, deadlocks, timeouts |
-| **Container Instances** | Container logs via Log Analytics integration |
 
 To view logs, query the Log Analytics workspace in the Azure Portal or use KQL:
 
 ```kusto
-// Container Instance logs
-ContainerInstanceLog_CL
-| where ContainerGroup_s contains "dab"
+// Container Apps logs
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s contains "dab"
 | order by TimeGenerated desc
 | take 100
+
+// Application Insights requests
+requests
+| where success == false
+| order by timestamp desc
 
 // SQL Database errors
 AzureDiagnostics
@@ -326,7 +360,7 @@ AzureDiagnostics
 
 ## Security
 
-- All traffic encrypted via HTTPS
+- All traffic encrypted via HTTPS (Container Apps native + Front Door)
 - Entra ID authentication required for all API endpoints
 - Role-based permissions (authenticated: read-only, admin: full CRUD)
 - Container Registry is private
@@ -337,9 +371,28 @@ AzureDiagnostics
 
 ## Documentation
 
+**Start here:** [Documentation Hub](docs/index.md) - Complete guide index with learning paths for beginners
+
+### For Beginners
+
+| Document | Description |
+|----------|-------------|
+| [Documentation Hub](docs/index.md) | Main entry point with quick start guides and learning paths |
+| [Azure Fundamentals](docs/azure-fundamentals-beginners.md) | Learn Azure basics - subscriptions, resources, containers |
+| [Portal Deployment Guide](docs/beginners-guide-portal.md) | Step-by-step deployment using only Azure Portal |
+| [Cloud Shell Deployment](docs/cloud-shell-deployment-guide.md) | Deploy without Docker Desktop using Azure Cloud Shell |
+| [ACR Setup Guide](docs/acr-setup-guide.md) | Azure Container Registry setup and image management |
+| [Troubleshooting Guide](docs/troubleshooting-guide.md) | Solutions for common issues and debugging tips |
+| [Best Practices Guide](docs/best-practices-guide.md) | Security, performance, and cost optimization |
+
+### Technical Reference
+
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | System architecture with component details and Mermaid diagrams |
+| [Auto-Scaling Guide](docs/auto-scaling-guide.md) | HTTP-based auto-scaling configuration |
+| [CI/CD Guide](docs/ci-cd-guide.md) | GitHub Actions workflow documentation |
+| [Container Apps Portal Guide](docs/container-apps-portal-guide.md) | Step-by-step portal deployment for Container Apps |
 | [DAB Configuration Guide](docs/dab-configuration-guide.md) | How to configure, extend, and add entities to Data API Builder |
 | [Deployment Guide (Scripts)](docs/deployment-guide-scripts.md) | Automated deployment using PowerShell and Azure CLI |
 | [Deployment Guide (Portal)](docs/deployment-guide-portal.md) | Step-by-step manual deployment via Azure Portal |

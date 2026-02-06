@@ -7,17 +7,16 @@
     Azure Container Registry. It handles ACR authentication and supports custom image
     tags and build-time environment variables.
 
+    Configuration can be loaded from a .env file in the repository root.
+
 .PARAMETER AcrName
-    The name of the Azure Container Registry (without .azurecr.io suffix).
+    The name of the Azure Container Registry (with or without .azurecr.io suffix).
 
 .PARAMETER ImageTag
     The tag to apply to the image. Defaults to 'latest'.
 
-.PARAMETER SubscriptionId
-    Optional Azure subscription ID. Uses default if not specified.
-
 .PARAMETER ApiBaseUrl
-    The DAB API base URL for build-time configuration.
+    The DAB API base URL for build-time configuration. Default: /api
 
 .PARAMETER AzureAdClientId
     The Azure AD client ID for the frontend app registration.
@@ -28,47 +27,155 @@
 .PARAMETER NoPush
     If specified, only builds the image without pushing to ACR.
 
+.PARAMETER EnvFile
+    Path to .env file. Default: ../../.env (relative to script)
+
 .EXAMPLE
+    # Uses .env file for configuration
     .\build-push-frontend.ps1 -AcrName "acrdabdemodev"
 
 .EXAMPLE
-    .\build-push-frontend.ps1 -AcrName "acrdabdemodev" -ImageTag "v1.0.0" -ApiBaseUrl "https://dabdemo-dev-dab.eastus.azurecontainer.io:5000/api"
+    # Override with explicit parameters
+    .\build-push-frontend.ps1 -AcrName "acrdabdemodev" -ImageTag "v1.0.0" -AzureAdClientId "your-client-id"
 
 .NOTES
     Requires: Docker Desktop, Azure CLI
-    Author: DOT Demo Project
 #>
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$AcrName,
 
     [string]$ImageTag = "latest",
 
     [string]$SubscriptionId,
 
-    [string]$ApiBaseUrl = "/api",
+    [string]$ApiBaseUrl,
 
     [string]$AzureAdClientId,
 
     [string]$AzureAdTenantId,
 
-    [switch]$NoPush
+    [string]$DabClientId,
+
+    [switch]$NoPush,
+
+    [string]$EnvFile
 )
 
 $ErrorActionPreference = "Stop"
 
-# Script paths
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+function Read-EnvFile {
+    param([string]$Path)
+
+    $envVars = @{}
+    if (Test-Path $Path) {
+        Get-Content $Path | ForEach-Object {
+            $line = $_.Trim()
+            if ($line -and -not $line.StartsWith('#')) {
+                $parts = $line -split '=', 2
+                if ($parts.Count -eq 2) {
+                    $key = $parts[0].Trim()
+                    $value = $parts[1].Trim()
+                    if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+                        ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+                        $value = $value.Substring(1, $value.Length - 2)
+                    }
+                    $envVars[$key] = $value
+                }
+            }
+        }
+    }
+    return $envVars
+}
+
+# =============================================================================
+# Script paths and .env loading
+# =============================================================================
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $FrontendDir = Join-Path $RepoRoot "src\frontend"
+
+# Determine .env file path
+if (-not $EnvFile) {
+    $EnvFile = Join-Path $RepoRoot ".env"
+}
+
+# Load .env file if it exists
+$envConfig = @{}
+if (Test-Path $EnvFile) {
+    $envConfig = Read-EnvFile -Path $EnvFile
+}
+
+# =============================================================================
+# Resolve Configuration (Parameter > .env > Default)
+# =============================================================================
+
+# ACR Name
+if (-not $AcrName) {
+    $AcrName = $envConfig['ACR_NAME']
+}
+if (-not $AcrName) {
+    Write-Host "ERROR: ACR name is required. Provide via -AcrName parameter or ACR_NAME in .env" -ForegroundColor Red
+    exit 1
+}
+
+# Normalize ACR name - strip .azurecr.io suffix if provided
+if ($AcrName -match '\.azurecr\.io$') {
+    $AcrName = $AcrName -replace '\.azurecr\.io$', ''
+}
+
+# API Base URL
+if (-not $ApiBaseUrl) {
+    $ApiBaseUrl = $envConfig['VITE_API_BASE_URL']
+}
+if (-not $ApiBaseUrl) {
+    $ApiBaseUrl = "/api"
+}
+
+# Azure AD Client ID
+if (-not $AzureAdClientId) {
+    $AzureAdClientId = $envConfig['FRONTEND_CLIENT_ID']
+}
+if (-not $AzureAdClientId) {
+    $AzureAdClientId = $envConfig['VITE_AZURE_AD_CLIENT_ID']
+}
+
+# Azure AD Tenant ID
+if (-not $AzureAdTenantId) {
+    $AzureAdTenantId = $envConfig['AZURE_TENANT_ID']
+}
+if (-not $AzureAdTenantId) {
+    $AzureAdTenantId = $envConfig['VITE_AZURE_AD_TENANT_ID']
+}
+
+# DAB Client ID (for API scope)
+if (-not $DabClientId) {
+    $DabClientId = $envConfig['DAB_CLIENT_ID']
+}
+if (-not $DabClientId) {
+    $DabClientId = $envConfig['VITE_DAB_CLIENT_ID']
+}
+
+# =============================================================================
+# Main Script
+# =============================================================================
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "DOT Demo - Build Frontend Container Image" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
+
+if (Test-Path $EnvFile) {
+    Write-Host "  Loaded config from .env file" -ForegroundColor Green
+}
 
 # Validate Docker is running
 Write-Host "Checking Docker..." -ForegroundColor Gray
@@ -99,6 +206,12 @@ Write-Host "  Image: $imageName" -ForegroundColor Gray
 Write-Host "  Tag: $ImageTag" -ForegroundColor Gray
 Write-Host "  Full Name: $fullImageName" -ForegroundColor Gray
 Write-Host ""
+Write-Host "Frontend Configuration:" -ForegroundColor White
+Write-Host "  API Base URL: $ApiBaseUrl" -ForegroundColor Gray
+Write-Host "  Azure AD Client ID: $(if ($AzureAdClientId) { $AzureAdClientId } else { '(not set)' })" -ForegroundColor Gray
+Write-Host "  Azure AD Tenant ID: $(if ($AzureAdTenantId) { $AzureAdTenantId } else { '(not set)' })" -ForegroundColor Gray
+Write-Host "  DAB Client ID (API): $(if ($DabClientId) { $DabClientId } else { '(not set)' })" -ForegroundColor Gray
+Write-Host ""
 
 # Build arguments for Vite environment variables
 $buildArgs = @()
@@ -110,6 +223,9 @@ if ($AzureAdClientId) {
 }
 if ($AzureAdTenantId) {
     $buildArgs += "--build-arg", "VITE_AZURE_AD_TENANT_ID=$AzureAdTenantId"
+}
+if ($DabClientId) {
+    $buildArgs += "--build-arg", "VITE_DAB_CLIENT_ID=$DabClientId"
 }
 
 # Build the image

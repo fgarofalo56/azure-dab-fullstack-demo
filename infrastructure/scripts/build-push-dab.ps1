@@ -7,8 +7,10 @@
     to the specified Azure Container Registry. It handles ACR authentication and
     supports custom image tags.
 
+    Configuration can be loaded from a .env file in the repository root.
+
 .PARAMETER AcrName
-    The name of the Azure Container Registry (without .azurecr.io suffix).
+    The name of the Azure Container Registry (with or without .azurecr.io suffix).
 
 .PARAMETER ImageTag
     The tag to apply to the image. Defaults to 'latest'.
@@ -19,44 +21,118 @@
 .PARAMETER NoPush
     If specified, only builds the image without pushing to ACR.
 
+.PARAMETER EnvFile
+    Path to .env file. Default: ../../.env (relative to script)
+
 .EXAMPLE
+    # Uses .env file for ACR name
+    .\build-push-dab.ps1
+
+.EXAMPLE
+    # Explicit ACR name
     .\build-push-dab.ps1 -AcrName "acrdabdemodev"
 
 .EXAMPLE
     .\build-push-dab.ps1 -AcrName "acrdabdemodev" -ImageTag "v1.0.0"
 
-.EXAMPLE
-    .\build-push-dab.ps1 -AcrName "acrdabdemodev" -NoPush
-
 .NOTES
     Requires: Docker Desktop, Azure CLI
-    Author: DOT Demo Project
 #>
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$AcrName,
 
     [string]$ImageTag = "latest",
 
     [string]$SubscriptionId,
 
-    [switch]$NoPush
+    [switch]$NoPush,
+
+    [string]$EnvFile
 )
 
 $ErrorActionPreference = "Stop"
 
-# Script paths
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+function Read-EnvFile {
+    param([string]$Path)
+
+    $envVars = @{}
+    if (Test-Path $Path) {
+        Get-Content $Path | ForEach-Object {
+            $line = $_.Trim()
+            if ($line -and -not $line.StartsWith('#')) {
+                $parts = $line -split '=', 2
+                if ($parts.Count -eq 2) {
+                    $key = $parts[0].Trim()
+                    $value = $parts[1].Trim()
+                    if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+                        ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+                        $value = $value.Substring(1, $value.Length - 2)
+                    }
+                    $envVars[$key] = $value
+                }
+            }
+        }
+    }
+    return $envVars
+}
+
+# =============================================================================
+# Script paths and .env loading
+# =============================================================================
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $DabConfigDir = Join-Path $RepoRoot "src\dab-config"
+
+# Determine .env file path
+if (-not $EnvFile) {
+    $EnvFile = Join-Path $RepoRoot ".env"
+}
+
+# Load .env file if it exists
+$envConfig = @{}
+if (Test-Path $EnvFile) {
+    $envConfig = Read-EnvFile -Path $EnvFile
+}
+
+# =============================================================================
+# Resolve Configuration (Parameter > .env > Prompt)
+# =============================================================================
+
+# ACR Name
+if (-not $AcrName) {
+    $AcrName = $envConfig['ACR_NAME']
+}
+if (-not $AcrName) {
+    Write-Host "ERROR: ACR name is required. Provide via -AcrName parameter or ACR_NAME in .env" -ForegroundColor Red
+    exit 1
+}
+
+# Normalize ACR name - strip .azurecr.io suffix if provided
+if ($AcrName -match '\.azurecr\.io$') {
+    $AcrName = $AcrName -replace '\.azurecr\.io$', ''
+}
+
+# =============================================================================
+# Main Script
+# =============================================================================
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "DOT Demo - Build DAB Container Image" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
+
+if (Test-Path $EnvFile) {
+    Write-Host "  Loaded config from .env file" -ForegroundColor Green
+}
 
 # Validate Docker is running
 Write-Host "Checking Docker..." -ForegroundColor Gray

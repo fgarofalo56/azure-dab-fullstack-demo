@@ -1,21 +1,21 @@
 <#
 .SYNOPSIS
-    Deploys the Azure DAB Full-Stack Demo infrastructure.
+    Deploys the Azure DAB Full-Stack Demo infrastructure with Container Apps.
 
 .DESCRIPTION
     This script deploys all Azure resources required for the Data API Builder
-    demo including ACR, ACI, Azure SQL, and storage accounts.
+    demo including ACR, Azure SQL, Container Apps, and supporting services.
 
-    Supports two-phase deployment:
-    1. First run with -SkipContainers to deploy infrastructure only
-    2. Build and push container images to ACR
-    3. Run again with -ContainersOnly to deploy containers
+    Configuration can be provided via:
+    1. A .env file in the repository root (recommended)
+    2. Command-line parameters (override .env values)
+    3. Interactive prompts (for missing required values)
 
 .PARAMETER ResourceGroupName
     Name of the Azure resource group to deploy to.
 
 .PARAMETER Location
-    Azure region for deployment. Default: eastus
+    Azure region for deployment. Default: eastus2
 
 .PARAMETER Environment
     Deployment environment (dev, staging, prod). Default: dev
@@ -24,73 +24,214 @@
     Base name for all resources. Default: dabdemo
 
 .PARAMETER SkipContainers
-    Skip deploying container instances (use for initial infrastructure setup)
+    Skip deploying Container Apps (use for initial infrastructure setup)
 
-.PARAMETER ContainersOnly
-    Deploy only the container instances (use after images are pushed to ACR)
-
-.PARAMETER LogAnalyticsWorkspaceId
-    Full resource ID of the Log Analytics workspace for diagnostic settings.
-    Example: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}
-
-.PARAMETER DisableDiagnostics
-    Disable diagnostic settings for all resources.
+.PARAMETER EnvFile
+    Path to .env file. Default: ../../.env (relative to script)
 
 .EXAMPLE
-    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus" -SkipContainers
+    # Use .env file for all configuration
+    ./deploy.ps1 -ResourceGroupName "rg-dab-demo"
 
 .EXAMPLE
-    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus" -ContainersOnly
+    # Override .env values with parameters
+    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Environment "prod" -MinReplicas 1
 
 .EXAMPLE
-    ./deploy.ps1 -ResourceGroupName "rg-dab-prod" -Environment "prod" -Location "westus2"
-
-.EXAMPLE
-    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -LogAnalyticsWorkspaceId "/subscriptions/.../workspaces/my-workspace"
+    # Skip containers for initial infrastructure deployment
+    ./deploy.ps1 -ResourceGroupName "rg-dab-demo" -SkipContainers
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$ResourceGroupName,
 
     [Parameter(Mandatory = $false)]
-    [string]$Location = "eastus",
+    [string]$Location,
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("dev", "staging", "prod")]
-    [string]$Environment = "dev",
+    [string]$Environment,
 
     [Parameter(Mandatory = $false)]
-    [string]$BaseName = "dabdemo",
+    [string]$BaseName,
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipContainers,
 
     [Parameter(Mandatory = $false)]
-    [switch]$ContainersOnly,
-
-    [Parameter(Mandatory = $false)]
-    [string]$LogAnalyticsWorkspaceId = "/subscriptions/a60a2fdd-c133-4845-9beb-31f470bf3ef5/resourceGroups/rg-alz-dev-logging/providers/Microsoft.OperationalInsights/workspaces/alz-dev-dataObservability-logAnalyticsWorkspace",
+    [string]$LogAnalyticsWorkspaceId,
 
     [Parameter(Mandatory = $false)]
     [switch]$DisableDiagnostics,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SkipFrontDoor
+    [switch]$SkipFrontDoor,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(0, 10)]
+    [int]$MinReplicas = -1,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 10)]
+    [int]$MaxReplicas = -1,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 1000)]
+    [int]$HttpScaleThreshold = -1,
+
+    [Parameter(Mandatory = $false)]
+    [string]$EnvFile
 )
 
 $ErrorActionPreference = "Stop"
 
-# Colors for output
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
 function Write-Step { param($Message) Write-Host "`n>> $Message" -ForegroundColor Cyan }
 function Write-Success { param($Message) Write-Host "   $Message" -ForegroundColor Green }
 function Write-Info { param($Message) Write-Host "   $Message" -ForegroundColor Gray }
+function Write-Warn { param($Message) Write-Host "   $Message" -ForegroundColor Yellow }
+
+function Read-EnvFile {
+    param([string]$Path)
+
+    $envVars = @{}
+    if (Test-Path $Path) {
+        Get-Content $Path | ForEach-Object {
+            $line = $_.Trim()
+            # Skip comments and empty lines
+            if ($line -and -not $line.StartsWith('#')) {
+                $parts = $line -split '=', 2
+                if ($parts.Count -eq 2) {
+                    $key = $parts[0].Trim()
+                    $value = $parts[1].Trim()
+                    # Remove surrounding quotes if present
+                    if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+                        ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+                        $value = $value.Substring(1, $value.Length - 2)
+                    }
+                    $envVars[$key] = $value
+                }
+            }
+        }
+    }
+    return $envVars
+}
+
+# =============================================================================
+# Load Configuration
+# =============================================================================
 
 Write-Host "`n========================================" -ForegroundColor Yellow
-Write-Host "  Azure DAB Demo - Infrastructure Deploy" -ForegroundColor Yellow
+Write-Host "  Azure DAB Demo - Container Apps Deploy" -ForegroundColor Yellow
 Write-Host "========================================`n" -ForegroundColor Yellow
 
-# Check Azure CLI login
+# Determine .env file path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+
+if (-not $EnvFile) {
+    $EnvFile = Join-Path $RepoRoot ".env"
+}
+
+# Load .env file if it exists
+$envConfig = @{}
+if (Test-Path $EnvFile) {
+    Write-Step "Loading configuration from .env file..."
+    $envConfig = Read-EnvFile -Path $EnvFile
+    Write-Success "Loaded $($envConfig.Count) settings from .env"
+} else {
+    Write-Step "No .env file found at $EnvFile"
+    Write-Info "Will prompt for required values (create .env from .env.example for easier deployments)"
+}
+
+# =============================================================================
+# Resolve Configuration (Parameter > .env > Default > Prompt)
+# =============================================================================
+
+# Resource Group (required)
+if (-not $ResourceGroupName) {
+    $ResourceGroupName = $envConfig['AZURE_RESOURCE_GROUP']
+}
+if (-not $ResourceGroupName) {
+    $ResourceGroupName = Read-Host "Enter Resource Group name"
+}
+
+# Location
+if (-not $Location) {
+    $Location = $envConfig['AZURE_LOCATION']
+}
+if (-not $Location) {
+    $Location = "eastus2"
+}
+
+# Environment
+if (-not $Environment) {
+    $Environment = $envConfig['ENVIRONMENT']
+}
+if (-not $Environment) {
+    $Environment = "dev"
+}
+
+# Base Name
+if (-not $BaseName) {
+    $BaseName = $envConfig['BASE_NAME']
+}
+if (-not $BaseName) {
+    $BaseName = "dabdemo"
+}
+
+# SQL Password
+$sqlPassword = $envConfig['SQL_ADMIN_PASSWORD']
+if (-not $sqlPassword) {
+    Write-Step "SQL credentials required..."
+    $sqlPasswordSecure = Read-Host -AsSecureString "Enter SQL admin password"
+    $sqlPassword = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sqlPasswordSecure)
+    )
+}
+
+# DAB Client ID
+$dabClientId = $envConfig['DAB_CLIENT_ID']
+if (-not $dabClientId) {
+    Write-Step "Azure AD app registrations required..."
+    $dabClientId = Read-Host "Enter DAB Backend App Client ID"
+}
+
+# Frontend Client ID
+$frontendClientId = $envConfig['FRONTEND_CLIENT_ID']
+if (-not $frontendClientId) {
+    $frontendClientId = Read-Host "Enter Frontend App Client ID"
+}
+
+# Log Analytics Workspace ID (optional - if not provided, diagnostics will be limited)
+if (-not $LogAnalyticsWorkspaceId) {
+    $LogAnalyticsWorkspaceId = $envConfig['LOG_ANALYTICS_WORKSPACE_ID']
+}
+# No default - if not provided, Container Apps won't have Log Analytics integration
+# Set LOG_ANALYTICS_WORKSPACE_ID in .env or use -LogAnalyticsWorkspaceId parameter
+
+# Scaling parameters (-1 means not set, use .env or default)
+if ($MinReplicas -eq -1) {
+    $minReplicasEnv = $envConfig['MIN_REPLICAS']
+    $MinReplicas = if ($minReplicasEnv) { [int]$minReplicasEnv } else { 0 }
+}
+if ($MaxReplicas -eq -1) {
+    $maxReplicasEnv = $envConfig['MAX_REPLICAS']
+    $MaxReplicas = if ($maxReplicasEnv) { [int]$maxReplicasEnv } else { 10 }
+}
+if ($HttpScaleThreshold -eq -1) {
+    $thresholdEnv = $envConfig['HTTP_SCALE_THRESHOLD']
+    $HttpScaleThreshold = if ($thresholdEnv) { [int]$thresholdEnv } else { 100 }
+}
+
+# =============================================================================
+# Azure Login Check
+# =============================================================================
+
 Write-Step "Checking Azure CLI authentication..."
 $account = az account show --output json 2>$null | ConvertFrom-Json
 if (-not $account) {
@@ -100,7 +241,13 @@ if (-not $account) {
 Write-Success "Logged in as: $($account.user.name)"
 Write-Info "Subscription: $($account.name)"
 
-# Create resource group if it doesn't exist
+# Get tenant ID from current session
+$tenantId = $account.tenantId
+
+# =============================================================================
+# Create Resource Group
+# =============================================================================
+
 Write-Step "Ensuring resource group exists..."
 $rgExists = az group exists --name $ResourceGroupName
 if ($rgExists -eq "false") {
@@ -110,54 +257,30 @@ if ($rgExists -eq "false") {
     Write-Info "Resource group already exists: $ResourceGroupName"
 }
 
-# Prompt for SQL password
-Write-Step "Setting up SQL credentials..."
-$sqlPassword = Read-Host -AsSecureString "Enter SQL admin password"
-$sqlPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sqlPassword)
-)
+# =============================================================================
+# Deploy Bicep Template
+# =============================================================================
 
-# Prompt for Azure AD app registrations
-Write-Step "Setting up Azure AD app registrations..."
-Write-Host "   You need to create two Azure AD app registrations:" -ForegroundColor Yellow
-Write-Host "   1. DAB Backend App - for Data API Builder authentication" -ForegroundColor Yellow
-Write-Host "   2. Frontend App - for React SPA authentication" -ForegroundColor Yellow
-Write-Host ""
-
-$dabClientId = Read-Host "Enter DAB Backend App Client ID"
-$frontendClientId = Read-Host "Enter Frontend App Client ID"
-
-# Get tenant ID
-$tenantId = $account.tenantId
-
-# Determine if we should deploy containers
 $deployContainers = -not $SkipContainers
-if ($ContainersOnly) {
-    $deployContainers = $true
-}
-
-# Determine if diagnostics should be enabled
 $enableDiagnostics = -not $DisableDiagnostics
-
-# Determine if Front Door should be deployed
 $deployFrontDoor = -not $SkipFrontDoor
 
-# Deploy Bicep template
-if ($SkipContainers) {
-    Write-Step "Deploying infrastructure only (containers will be skipped)..."
-} elseif ($ContainersOnly) {
-    Write-Step "Deploying containers only..."
-} else {
-    Write-Step "Deploying full infrastructure with containers..."
-}
+Write-Step "Deployment Configuration:"
+Write-Info "Resource Group: $ResourceGroupName"
+Write-Info "Location: $Location"
+Write-Info "Environment: $Environment"
+Write-Info "Base Name: $BaseName"
+Write-Info "Deploy Containers: $deployContainers"
+Write-Info "Auto-scaling: $MinReplicas - $MaxReplicas replicas (threshold: $HttpScaleThreshold)"
 
-if ($enableDiagnostics -and $LogAnalyticsWorkspaceId) {
-    Write-Info "Diagnostics enabled - sending logs to Log Analytics workspace"
+if ($SkipContainers) {
+    Write-Warn "Container Apps will be skipped (push images to ACR first, then run again)"
 }
 
 $deploymentName = "dab-demo-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-
 $bicepPath = Join-Path $PSScriptRoot "..\bicep\main.bicep"
+
+Write-Step "Deploying Azure resources..."
 
 $deployment = az deployment group create `
     --resource-group $ResourceGroupName `
@@ -166,7 +289,7 @@ $deployment = az deployment group create `
     --parameters `
         environment=$Environment `
         baseName=$BaseName `
-        sqlAdminPassword=$sqlPasswordPlain `
+        sqlAdminPassword=$sqlPassword `
         tenantId=$tenantId `
         dabClientId=$dabClientId `
         frontendClientId=$frontendClientId `
@@ -174,6 +297,9 @@ $deployment = az deployment group create `
         logAnalyticsWorkspaceId=$LogAnalyticsWorkspaceId `
         enableDiagnostics=$enableDiagnostics `
         deployFrontDoor=$deployFrontDoor `
+        minReplicas=$MinReplicas `
+        maxReplicas=$MaxReplicas `
+        httpScaleThreshold=$HttpScaleThreshold `
     --output json | ConvertFrom-Json
 
 if ($LASTEXITCODE -ne 0) {
@@ -183,7 +309,10 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Success "Deployment completed successfully!"
 
-# Get outputs
+# =============================================================================
+# Display Results
+# =============================================================================
+
 $outputs = $deployment.properties.outputs
 
 Write-Host "`n========================================" -ForegroundColor Green
@@ -199,13 +328,26 @@ Write-Host "   Server: $($outputs.sqlServerFqdn.value)"
 Write-Host "   Database: $($outputs.sqlDatabaseName.value)"
 
 if ($outputs.containersDeployed.value -eq $true) {
-    Write-Host "`nData API Builder:" -ForegroundColor Cyan
-    Write-Host "   URL: $($outputs.dabUrl.value)"
-    Write-Host "   REST API: $($outputs.dabUrl.value)/api"
-    Write-Host "   GraphQL: $($outputs.dabUrl.value)/graphql"
+    Write-Host "`nContainer Apps Environment:" -ForegroundColor Cyan
+    Write-Host "   Name: $($outputs.containerAppEnvironmentName.value)"
 
-    Write-Host "`nFrontend:" -ForegroundColor Cyan
-    Write-Host "   URL: $($outputs.frontendUrl.value)"
+    Write-Host "`nData API Builder Container App:" -ForegroundColor Cyan
+    Write-Host "   Name: $($outputs.dabContainerAppName.value)"
+    Write-Host "   URL: $($outputs.dabContainerAppUrl.value)"
+
+    Write-Host "`nFrontend Container App:" -ForegroundColor Cyan
+    Write-Host "   Name: $($outputs.frontendContainerAppName.value)"
+    Write-Host "   URL: $($outputs.frontendContainerAppUrl.value)"
+
+    Write-Host "`nAuto-Scaling Configuration:" -ForegroundColor Cyan
+    Write-Host "   Min Replicas: $($outputs.scalingMinReplicas.value)"
+    Write-Host "   Max Replicas: $($outputs.scalingMaxReplicas.value)"
+    Write-Host "   Scale Threshold: $($outputs.scalingHttpThreshold.value) concurrent requests"
+
+    if ($outputs.appInsightsName.value) {
+        Write-Host "`nApplication Insights:" -ForegroundColor Cyan
+        Write-Host "   Name: $($outputs.appInsightsName.value)"
+    }
 
     if ($outputs.frontDoorDeployed.value -eq $true) {
         Write-Host "`nAzure Front Door (HTTPS):" -ForegroundColor Green
@@ -217,8 +359,8 @@ if ($outputs.containersDeployed.value -eq $true) {
         Write-Host "   ** Use the Front Door URL for HTTPS access with MSAL authentication **" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "`nContainers:" -ForegroundColor Yellow
-    Write-Host "   Not deployed (use -ContainersOnly after pushing images)"
+    Write-Host "`nContainer Apps:" -ForegroundColor Yellow
+    Write-Host "   Not deployed (push images to ACR and run again without -SkipContainers)"
 }
 
 Write-Host "`n========================================" -ForegroundColor Yellow
@@ -236,12 +378,12 @@ if ($SkipContainers -or $outputs.containersDeployed.value -eq $false) {
     Write-Host "   cd ../../src/database"
     Write-Host "   ./Initialize-Database.ps1 -ServerName '$($outputs.sqlServerFqdn.value)' -DatabaseName '$($outputs.sqlDatabaseName.value)' -Username 'sqladmin' -Password '<your-password>'`n"
 
-    Write-Host "4. Deploy containers (after images are pushed):" -ForegroundColor White
-    Write-Host "   ./deploy.ps1 -ResourceGroupName $ResourceGroupName -Location $Location -ContainersOnly`n"
+    Write-Host "4. Deploy Container Apps (after images are pushed):" -ForegroundColor White
+    Write-Host "   ./deploy.ps1 -ResourceGroupName $ResourceGroupName`n"
 } else {
     Write-Host "1. Initialize the database schema (if not done):" -ForegroundColor White
     Write-Host "   cd ../../src/database"
-    Write-Host "   ./Initialize-Database.ps1 -ServerName '$($outputs.sqlServerFqdn.value)' -DatabaseName '$($outputs.sqlDatabaseName.value)' -Username 'sqladmin' -Password '<your-password>'`n"
+    Write-Host "   ./Initialize-Database.ps1 -ServerName '$($outputs.sqlServerFqdn.value)' -DatabaseName '$($outputs.sqlDatabaseName.value)' -Username 'sqladmin' -Password '<password>'`n"
 
     if ($outputs.frontDoorDeployed.value -eq $true) {
         Write-Host "2. Update Azure AD App Registration redirect URIs:" -ForegroundColor White
@@ -251,13 +393,17 @@ if ($SkipContainers -or $outputs.containersDeployed.value -eq $false) {
         Write-Host "   Frontend: $($outputs.frontDoorUrl.value)" -ForegroundColor Green
         Write-Host "   DAB API:  $($outputs.frontDoorApiUrl.value)`n"
     } else {
-        Write-Host "2. Access your application:" -ForegroundColor White
-        Write-Host "   Frontend: $($outputs.frontendUrl.value)"
-        Write-Host "   DAB API:  $($outputs.dabUrl.value)/api`n"
+        Write-Host "2. Access your application via Container Apps:" -ForegroundColor White
+        Write-Host "   Frontend: $($outputs.frontendContainerAppUrl.value)"
+        Write-Host "   DAB API:  $($outputs.dabContainerAppUrl.value)`n"
     }
+
+    Write-Host "4. Monitor auto-scaling:" -ForegroundColor White
+    Write-Host "   az containerapp show -n $($outputs.dabContainerAppName.value) -g $ResourceGroupName --query 'properties.runningStatus'"
+    Write-Host "   az containerapp replica list -n $($outputs.dabContainerAppName.value) -g $ResourceGroupName`n"
 }
 
 # Save deployment outputs for later use
-$outputPath = Join-Path $PSScriptRoot "..\..\deployment-outputs.json"
+$outputPath = Join-Path $RepoRoot "deployment-outputs.json"
 $outputs | ConvertTo-Json -Depth 10 | Out-File -FilePath $outputPath -Encoding UTF8
 Write-Info "Deployment outputs saved to: $outputPath"

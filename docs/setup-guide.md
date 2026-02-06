@@ -1,6 +1,20 @@
 # Setup Guide: Azure Data API Builder Full-Stack Demo
 
-This guide walks you through deploying the complete Azure Data API Builder demo from scratch.
+<div align="center">
+
+![Setup](https://img.shields.io/badge/Setup-Guide-00C853?style=for-the-badge&logo=rocket&logoColor=white)
+![Azure](https://img.shields.io/badge/Azure-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
+![DAB](https://img.shields.io/badge/Data%20API%20Builder-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
+
+**Complete deployment from scratch to running application**
+
+</div>
+
+This guide walks you through deploying the complete Azure Data API Builder demo from scratch with Azure Container Apps.
+
+> **Estimated Time:** 45-60 minutes
+> **Difficulty:** Intermediate
+> **Result:** Fully functional DOT Transportation Data Portal
 
 ## Table of Contents
 
@@ -123,20 +137,15 @@ az login
 az account set --subscription "<your-subscription-id>"
 ```
 
-### 3. Run the Deployment Script
+### 3. Run the Deployment Script (Two Phases)
+
+#### Phase 1: Infrastructure Only
 
 ```powershell
 cd infrastructure/scripts
 
-# Deploy with defaults (dev environment)
-./deploy.ps1 -ResourceGroupName "rg-dab-demo"
-
-# Or specify all parameters
-./deploy.ps1 `
-    -ResourceGroupName "rg-dab-demo" `
-    -Location "eastus" `
-    -Environment "dev" `
-    -BaseName "dabdemo"
+# Deploy infrastructure without Container Apps
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2" -SkipContainers
 ```
 
 The script will prompt you for:
@@ -144,12 +153,45 @@ The script will prompt you for:
 - DAB Backend Client ID
 - Frontend Client ID
 
-### 4. Wait for Deployment
+#### Phase 2: Full Deployment
 
-The deployment takes approximately 5-10 minutes. You'll see outputs including:
-- ACR login server
-- SQL Server FQDN
-- Container instance URLs
+After building and pushing images (step 5):
+
+```powershell
+# Deploy Container Apps
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2"
+```
+
+### 4. Deployment Output
+
+After successful deployment, you'll see:
+
+```
+============================================
+Deployment completed successfully!
+============================================
+
+Container Apps Environment:
+   Name: dabdemo-dev-cae
+
+Data API Builder Container App:
+   Name: dabdemo-dev-ca-dab
+   URL: https://dabdemo-dev-ca-dab.nicebeach-xxxxx.eastus2.azurecontainerapps.io
+
+Frontend Container App:
+   Name: dabdemo-dev-ca-frontend
+   URL: https://dabdemo-dev-ca-frontend.nicebeach-xxxxx.eastus2.azurecontainerapps.io
+
+Auto-Scaling Configuration:
+   Min Replicas: 0 (scale-to-zero enabled)
+   Max Replicas: 10
+   Scale Threshold: 100 concurrent requests
+
+Azure Front Door (HTTPS):
+   Frontend URL: https://dabdemodev.xxxxx.azurefd.net
+   REST API: https://dabdemodev.xxxxx.azurefd.net/api
+   GraphQL: https://dabdemodev.xxxxx.azurefd.net/graphql
+```
 
 ---
 
@@ -167,45 +209,29 @@ Username: sqladmin
 Password: <your-password>
 ```
 
-### 2. Create Sample Schema
+### 2. Initialize Database
+
+```powershell
+cd src/database
+
+./Initialize-Database.ps1 -ServerName "<sql-server>.database.windows.net" `
+                          -DatabaseName "<database-name>" `
+                          -Username "sqladmin" `
+                          -Password "<your-password>"
+```
+
+### 3. Verify Data
 
 ```sql
--- Create a sample Products table
-CREATE TABLE Products (
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    Name NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(500),
-    Price DECIMAL(18,2) NOT NULL,
-    Category NVARCHAR(50),
-    InStock BIT DEFAULT 1,
-    CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
-    UpdatedAt DATETIME2 DEFAULT GETUTCDATE()
-);
-
--- Create a sample Categories table
-CREATE TABLE Categories (
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    Name NVARCHAR(50) NOT NULL,
-    Description NVARCHAR(200)
-);
-
--- Add foreign key
-ALTER TABLE Products
-ADD CONSTRAINT FK_Products_Categories
-FOREIGN KEY (Category) REFERENCES Categories(Name);
-
--- Insert sample data
-INSERT INTO Categories (Name, Description) VALUES
-    ('Electronics', 'Electronic devices and accessories'),
-    ('Clothing', 'Apparel and fashion items'),
-    ('Books', 'Books and publications');
-
-INSERT INTO Products (Name, Description, Price, Category) VALUES
-    ('Laptop', 'High-performance laptop', 999.99, 'Electronics'),
-    ('Smartphone', 'Latest smartphone model', 699.99, 'Electronics'),
-    ('T-Shirt', 'Cotton t-shirt', 29.99, 'Clothing'),
-    ('Programming Book', 'Learn to code', 49.99, 'Books');
+SELECT 'Categories' AS TableName, COUNT(*) AS Records FROM Categories
+UNION ALL SELECT 'States', COUNT(*) FROM States
+UNION ALL SELECT 'RailroadAccidents', COUNT(*) FROM RailroadAccidents
+UNION ALL SELECT 'Bridges', COUNT(*) FROM Bridges
+UNION ALL SELECT 'TransitAgencies', COUNT(*) FROM TransitAgencies
+UNION ALL SELECT 'VehicleFatalities', COUNT(*) FROM VehicleFatalities;
 ```
+
+Expected: ~1,300 total records
 
 ---
 
@@ -222,101 +248,96 @@ az acr login --name $acrName
 ### 2. Build and Push DAB Container
 
 ```powershell
-cd src/dab-config
+cd infrastructure/scripts
 
-# Build the container
-docker build -t dab:latest .
-
-# Tag for ACR
-docker tag dab:latest "$acrName.azurecr.io/dab:latest"
-
-# Push to ACR
-docker push "$acrName.azurecr.io/dab:latest"
+./build-push-dab.ps1 -AcrName $acrName
 ```
 
 ### 3. Build and Push Frontend Container
 
 ```powershell
-cd src/frontend
-
-# Install dependencies and build
-npm install
-npm run build
-
-# Build the container
-docker build -t frontend:latest .
-
-# Tag for ACR
-docker tag frontend:latest "$acrName.azurecr.io/frontend:latest"
-
-# Push to ACR
-docker push "$acrName.azurecr.io/frontend:latest"
+./build-push-frontend.ps1 -AcrName $acrName `
+    -AzureAdClientId "<frontend-client-id>" `
+    -AzureAdTenantId "<tenant-id>"
 ```
 
-### 4. Restart Container Instances
+### 4. Deploy Container Apps
 
 ```powershell
-# Restart to pull new images
-az container restart --name "dabdemo-dev-dab" --resource-group "rg-dab-demo"
-az container restart --name "dabdemo-dev-frontend" --resource-group "rg-dab-demo"
+# Run Phase 2 deployment
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" -Location "eastus2"
 ```
 
 ---
 
 ## Verify Deployment
 
-### 1. Check Container Status
+### 1. Check Container App Status
 
 ```powershell
-# Check DAB container
-az container show --name "dabdemo-dev-dab" --resource-group "rg-dab-demo" --query "instanceView.state"
+# Check DAB Container App
+az containerapp show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --query "properties.runningStatus"
 
-# Check Frontend container
-az container show --name "dabdemo-dev-frontend" --resource-group "rg-dab-demo" --query "instanceView.state"
+# Check replicas (may be 0 if scale-to-zero)
+az containerapp replica list --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo"
 ```
 
 ### 2. Test DAB Endpoints
 
 ```powershell
-# Get DAB URL from deployment outputs
-$dabUrl = "http://dabdemo-dev-dab.eastus.azurecontainer.io:5000"
+# Get Container App URL
+$dabUrl = az containerapp show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --query "properties.configuration.ingress.fqdn" -o tsv
 
-# Test REST API (will require auth in production)
-curl "$dabUrl/api/Product"
+# Test API (will trigger cold start if scaled to zero)
+curl "https://$dabUrl/"
 
-# Test GraphQL endpoint
-curl -X POST "$dabUrl/graphql" \
-    -H "Content-Type: application/json" \
-    -d '{"query": "{ products { items { id name price } } }"}'
+# Test via Front Door
+$frontDoorUrl = (Get-Content ..\..\deployment-outputs.json | ConvertFrom-Json).frontDoorUrl.value
+curl "$frontDoorUrl/api/Category"
 ```
 
 ### 3. Access Frontend
 
-Open your browser and navigate to:
+Open your browser and navigate to either:
+
+**Front Door URL (recommended):**
 ```
-http://dabdemo-dev-frontend.eastus.azurecontainer.io
+https://<your-front-door-endpoint>.azurefd.net
+```
+
+**Container App URL:**
+```
+https://<frontend-container-app>.azurecontainerapps.io
 ```
 
 You'll be prompted to sign in with your Azure AD credentials.
+
+### 4. Update App Registration
+
+Add the production URLs as redirect URIs:
+
+1. Go to **Azure Portal** > **App registrations** > **DAB Demo Frontend**
+2. Go to **Authentication**
+3. Add the Container App and Front Door URLs as redirect URIs
 
 ---
 
 ## Troubleshooting
 
-### Container Won't Start
+### Container App Won't Start
 
 ```powershell
 # Check container logs
-az container logs --name "dabdemo-dev-dab" --resource-group "rg-dab-demo"
+az containerapp logs show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --follow
 
-# Check container events
-az container show --name "dabdemo-dev-dab" --resource-group "rg-dab-demo" --query "instanceView.events"
+# Check system events
+az containerapp logs show --name "dabdemo-dev-ca-dab" --resource-group "rg-dab-demo" --type system
 ```
 
 ### SQL Connection Failed
 
 1. Verify firewall rules allow Azure services
-2. Check connection string in container environment
+2. Check connection string in container secrets
 3. Ensure SQL credentials are correct
 
 ### Authentication Issues
@@ -324,23 +345,35 @@ az container show --name "dabdemo-dev-dab" --resource-group "rg-dab-demo" --quer
 1. Verify app registration scopes are configured
 2. Check admin consent was granted
 3. Verify tenant ID matches across all configurations
+4. Ensure redirect URIs are correct
 
 ### Image Pull Failed
 
-1. Verify ACR credentials in ACI
+1. Verify ACR credentials
 2. Check image exists in ACR:
    ```powershell
    az acr repository list --name $acrName
+   az acr repository show-tags --name $acrName --repository dab
    ```
+
+### Cold Start Delays
+
+With scale-to-zero enabled (`minReplicas=0`), the first request after idle will experience a cold start (2-5 seconds).
+
+**Solution:** Set `minReplicas=1` for production:
+```powershell
+./deploy.ps1 -ResourceGroupName "rg-dab-demo" -MinReplicas 1
+```
 
 ---
 
 ## Next Steps
 
 - [Architecture Documentation](architecture.md)
-- [API Reference](api-reference.md)
-- [Contributing Guide](../CONTRIBUTING.md)
+- [Auto-Scaling Guide](auto-scaling-guide.md)
+- [CI/CD Guide](ci-cd-guide.md)
+- [API Reference](dab-configuration-guide.md)
 
 ---
 
-**Need help?** Open an issue on GitHub or check the [Azure DAB documentation](https://learn.microsoft.com/azure/data-api-builder/).
+**Need help?** Open an issue on GitHub or check the [Azure Container Apps documentation](https://learn.microsoft.com/azure/container-apps/).

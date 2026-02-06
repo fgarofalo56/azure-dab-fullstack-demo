@@ -1,18 +1,18 @@
 # Architecture Diagrams
 
-This folder contains enterprise-detailed Excalidraw diagrams for the DOT Transportation Data Portal.
+This folder contains enterprise-detailed Excalidraw diagrams for the DOT Transportation Data Portal, enhanced with official Azure product icons.
 
 ## Diagram Files
 
-| File | Description |
-|------|-------------|
-| `architecture.excalidraw` | Main system architecture - Azure services, data flow, components |
-| `deployment-architecture.excalidraw` | CI/CD pipeline, GitHub Actions, Bicep infrastructure |
-| `security-architecture.excalidraw` | Defense-in-depth security layers |
-| `data-flow-architecture.excalidraw` | Request/response flow, REST/GraphQL, database schema |
-| `monitoring-architecture.excalidraw` | Application Insights, Log Analytics, dashboards |
-| `auto-scaling-architecture.excalidraw` | KEDA HTTP scaling, replica management |
-| `authentication-flow.excalidraw` | OAuth 2.0/OIDC sequence with Entra ID |
+| File | Description | Azure Icons Added |
+|------|-------------|-------------------|
+| `architecture.excalidraw` | Main system architecture - Azure services, data flow, components | Front Door, Container Apps, SQL Database, ACR, Storage, Entra ID, App Insights, Log Analytics |
+| `deployment-architecture.excalidraw` | CI/CD pipeline, GitHub Actions, Bicep infrastructure | Container Registry, Container Apps |
+| `security-architecture.excalidraw` | Defense-in-depth security layers | Front Door, SQL Database |
+| `data-flow-architecture.excalidraw` | Request/response flow, REST/GraphQL, database schema | Front Door, Container Apps |
+| `monitoring-architecture.excalidraw` | Application Insights, Log Analytics, dashboards | Container Apps, SQL Database, ACR, Front Door |
+| `auto-scaling-architecture.excalidraw` | KEDA HTTP scaling, replica management | Container Apps |
+| `authentication-flow.excalidraw` | OAuth 2.0/OIDC sequence with Entra ID | Active Directory |
 
 ## How to View/Edit
 
@@ -62,73 +62,40 @@ for file in *.excalidraw; do
 done
 ```
 
-## Replacing Placeholder Icons with Production Icons
+## Azure Icons Status
 
-The diagrams contain `[REPLACE: ...]` markers indicating which official Azure icons should be used. Follow these steps to replace them with production-quality icons from Excalidraw libraries.
+**All diagrams have been updated with official Azure product icons** from the Excalidraw libraries. The icons are embedded directly in the `.excalidraw` files.
 
-### Step 1: Load Required Libraries
+### Icons Added (25 total across 7 diagrams)
 
-**In VS Code (with Excalidraw extension):**
-1. Open the `.excalidraw` file
+| Diagram | Icons Added |
+|---------|-------------|
+| `architecture.excalidraw` | Front Door, Container Apps (x2), Azure SQL Database, Container Registry, Blob Storage, Active Directory, Application Insights, Log Analytics |
+| `authentication-flow.excalidraw` | Active Directory |
+| `auto-scaling-architecture.excalidraw` | Container Apps (x2) |
+| `data-flow-architecture.excalidraw` | Front Door, Container Apps (x2) |
+| `deployment-architecture.excalidraw` | Container Registry, Container Apps |
+| `monitoring-architecture.excalidraw` | Container Apps (x2), Azure SQL Database, Container Registry, Front Door |
+| `security-architecture.excalidraw` | Front Door (x2), Azure SQL Database |
+
+### Icon Libraries Used
+
+Icons were sourced from these Excalidraw libraries:
+- `microsoft-azure-cloud-icons.excalidrawlib` - Azure SQL Database
+- `azure-cloud-services.excalidrawlib` - Active Directory, Application Insights, Blob Storage
+- `azure-compute.excalidrawlib` - Container Apps
+- `azure-containers.excalidrawlib` - Container Registry
+- `azure-network.excalidrawlib` - Front Door
+
+### Adding More Icons
+
+To add additional Azure icons:
+
+1. Open the `.excalidraw` file in VS Code (with Excalidraw extension) or excalidraw.com
 2. Press `0` to open the library panel
-3. Click the folder icon (Open)
-4. Navigate to `C:\Users\{username}\.claude\skills\excalidraw\libraries\azure\`
-5. Load these libraries:
-   - `azure-cloud-services.excalidrawlib`
-   - `azure-compute.excalidrawlib`
-   - `azure-containers.excalidrawlib`
-   - `azure-network.excalidrawlib`
-   - `microsoft-azure-cloud-icons.excalidrawlib`
-6. For GitHub icons, load from `...\devops\github-actions.excalidrawlib`
-7. For architecture components, load from `...\software-architecture\architecture-diagram-components.excalidrawlib`
-
-**Or download from online:**
-1. Visit [libraries.excalidraw.com](https://libraries.excalidraw.com)
-2. Search for "Azure" and add relevant libraries
-3. For icons not in local libraries, search for "Log Analytics" etc.
-
-### Step 2: Find and Replace Icons
-
-1. Open the diagram in Excalidraw
-2. Search for `[REPLACE:` text elements
-3. Delete the placeholder text element
-4. Drag the corresponding icon from your loaded library
-5. Position and resize the icon as needed (60x60 or 80x80 px recommended)
-
-### Icon Mapping Reference
-
-| Placeholder Marker | Library File | Icon Name |
-|--------------------|--------------|-----------|
-| `[REPLACE: Azure logo...]` | azure-cloud-services.excalidrawlib | Azure logo |
-| `[REPLACE: Front Door Profiles...]` | azure-network.excalidrawlib | Front Door Profiles |
-| `[REPLACE: Container Apps...]` | azure-compute.excalidrawlib | Container Apps |
-| `[REPLACE: Azure SQL Database...]` | microsoft-azure-cloud-icons.excalidrawlib | Azure SQL Database |
-| `[REPLACE: Container Registries...]` | azure-containers.excalidrawlib | Container Registries |
-| `[REPLACE: Blob Storage...]` | azure-cloud-services.excalidrawlib | Blob Storage |
-| `[REPLACE: Active Directory...]` | azure-cloud-services.excalidrawlib | Active Directory |
-| `[REPLACE: Application Insights...]` | azure-cloud-services.excalidrawlib | Application Insights |
-| `[REPLACE: User icon...]` | architecture-diagram-components.excalidrawlib | User |
-| `[REPLACE: Device icon...]` | architecture-diagram-components.excalidrawlib | Device |
-| `[REPLACE: GitHub...]` | github-actions.excalidrawlib | GitHub |
-| `[REPLACE: Download Log Analytics...]` | Download from libraries.excalidraw.com | Log Analytics |
-
-### Local Library Locations
-
-If using the Excalidraw skill libraries:
-
-```
-C:\Users\{username}\.claude\skills\excalidraw\libraries\
-├── azure/
-│   ├── azure-cloud-services.excalidrawlib
-│   ├── azure-compute.excalidrawlib
-│   ├── azure-containers.excalidrawlib
-│   ├── azure-network.excalidrawlib
-│   └── microsoft-azure-cloud-icons.excalidrawlib
-├── devops/
-│   └── github-actions.excalidrawlib
-└── software-architecture/
-    └── architecture-diagram-components.excalidrawlib
-```
+3. Load libraries from `~/.claude/skills/excalidraw/libraries/azure/`
+4. Drag icons onto the canvas
+5. Save the file
 
 ## Adding Azure Icons (Online)
 

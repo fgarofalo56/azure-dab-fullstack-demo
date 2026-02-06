@@ -19,8 +19,10 @@ import { msalConfig, loginRequest } from './config/authConfig';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Pagination, usePagination } from './components/Pagination';
 import { GraphQLExplorer } from './components/GraphQLExplorer';
+import { ApiExplorer } from './components/ApiExplorer';
 import { CrudModal, CrudMode } from './components/CrudModal';
 import { formatNumber, formatCurrency, formatDate, buildODataQuery, createRecord, updateRecord, deleteRecord } from './utils/api';
+import { useApiToken } from './hooks/useApiToken';
 import type {
   CategorySummary,
   State,
@@ -243,6 +245,7 @@ function AuthenticatedApp() {
   const isAuthenticated = useIsAuthenticated();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showGraphQL, setShowGraphQL] = useState(false);
+  const [showApiExplorer, setShowApiExplorer] = useState(false);
 
   const handleLogin = useCallback(() => {
     instance.loginRedirect(loginRequest).catch(console.error);
@@ -277,6 +280,16 @@ function AuthenticatedApp() {
             <div className="flex justify-between items-center">
               <DOTLogo />
               <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowApiExplorer(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-lg hover:shadow-xl"
+                  title="Open REST API Explorer"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  <span className="hidden sm:inline">REST API</span>
+                </button>
                 <button
                   onClick={() => setShowGraphQL(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl"
@@ -353,7 +366,8 @@ function AuthenticatedApp() {
           </div>
         </footer>
 
-        {/* GraphQL Explorer Modal */}
+        {/* API Explorer Modals */}
+        {showApiExplorer && <ApiExplorer onClose={() => setShowApiExplorer(false)} />}
         {showGraphQL && <GraphQLExplorer onClose={() => setShowGraphQL(false)} />}
       </div>
     </ErrorBoundary>
@@ -440,19 +454,16 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
 // ============================================================================
 
 function CategoryDashboard({ onSelectCategory }: { onSelectCategory: (cat: string) => void }) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
 
   const { data: summaries, isLoading, error } = useQuery({
     queryKey: ['categorySummaries'],
     queryFn: async (): Promise<CategorySummary[]> => {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
       const res = await fetch(`${apiUrl}/CategorySummary`, {
-        headers: { Authorization: `Bearer ${response.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!res.ok) throw new Error('Failed to fetch category summaries');
@@ -481,7 +492,7 @@ function CategoryDashboard({ onSelectCategory }: { onSelectCategory: (cat: strin
     'Automobiles': 'VehicleFatality',
   };
 
-  const totalRecords = summaries?.reduce((sum, cat) => sum + cat.recordCount, 0) || 0;
+  const totalRecords = summaries?.reduce((sum, cat) => sum + cat.RecordCount, 0) || 0;
 
   return (
     <div>
@@ -495,25 +506,25 @@ function CategoryDashboard({ onSelectCategory }: { onSelectCategory: (cat: strin
 
       {/* Category Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-        {summaries?.sort((a, b) => a.categoryId - b.categoryId).map((cat) => (
+        {summaries?.sort((a, b) => a.CategoryId - b.CategoryId).map((cat) => (
           <button
-            key={cat.categoryId}
-            onClick={() => onSelectCategory(categoryEndpoints[cat.categoryName] || '')}
+            key={cat.CategoryId}
+            onClick={() => onSelectCategory(categoryEndpoints[cat.CategoryName] || '')}
             className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden text-left border border-slate-100 hover:-translate-y-1"
           >
             <div className="p-6">
               <div className="flex items-start gap-4">
                 <div
                   className="p-4 rounded-xl transition-transform group-hover:scale-110"
-                  style={{ backgroundColor: cat.color + '15', color: cat.color }}
+                  style={{ backgroundColor: cat.Color + '15', color: cat.Color }}
                 >
-                  {getIcon(cat.icon, 'w-10 h-10')}
+                  {getIcon(cat.Icon, 'w-10 h-10')}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-xl font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">
-                    {cat.categoryName}
+                    {cat.CategoryName}
                   </h3>
-                  <p className="text-slate-600 text-sm line-clamp-2">{cat.description}</p>
+                  <p className="text-slate-600 text-sm line-clamp-2">{cat.Description}</p>
                 </div>
                 <svg
                   className="w-6 h-6 text-slate-300 group-hover:text-blue-500 transition-all group-hover:translate-x-1"
@@ -527,12 +538,12 @@ function CategoryDashboard({ onSelectCategory }: { onSelectCategory: (cat: strin
             </div>
             <div
               className="px-6 py-4 border-t"
-              style={{ backgroundColor: cat.color + '08', borderColor: cat.color + '20' }}
+              style={{ backgroundColor: cat.Color + '08', borderColor: cat.Color + '20' }}
             >
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 text-sm">Total Records</span>
-                <span className="text-2xl font-bold" style={{ color: cat.color }}>
-                  {formatNumber(cat.recordCount)}
+                <span className="text-2xl font-bold" style={{ color: cat.Color }}>
+                  {formatNumber(cat.RecordCount)}
                 </span>
               </div>
             </div>
@@ -572,19 +583,16 @@ function CategoryDashboard({ onSelectCategory }: { onSelectCategory: (cat: strin
 }
 
 function DataView({ category, onBack }: { category: string; onBack: () => void }) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
 
   const { data: states } = useQuery({
     queryKey: ['states'],
     queryFn: async (): Promise<State[]> => {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      const res = await fetch(`${apiUrl}/State?$orderby=name`, {
-        headers: { Authorization: `Bearer ${response.accessToken}` },
+      const res = await fetch(`${apiUrl}/State?$orderby=Name`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!res.ok) throw new Error('Failed to fetch states');
@@ -593,8 +601,9 @@ function DataView({ category, onBack }: { category: string; onBack: () => void }
     },
   });
 
-  const stateMap = new Map(states?.map(s => [s.id, s]) || []);
-  const getStateCode = (stateId: number) => stateMap.get(stateId)?.code || '??';
+  // DAB returns PascalCase field names
+  const stateMap = new Map(states?.map((s: any) => [s.Id, s]) || []);
+  const getStateCode = (stateId: number) => stateMap.get(stateId)?.Code || '??';
 
   const categoryConfig: Record<string, { title: string; color: string; description: string }> = {
     'RailroadAccident': {
@@ -663,7 +672,7 @@ function DataView({ category, onBack }: { category: string; onBack: () => void }
 // ============================================================================
 
 function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: (id: number) => string; color: string; states?: State[] }) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
   const queryClient = useQueryClient();
   const { page, pageSize, skip, handlePageChange, handlePageSizeChange } = usePagination(25);
 
@@ -674,23 +683,24 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['railroadAccidents', page, pageSize],
+    queryKey: ['railroadAccidents'],
     queryFn: async () => {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      const query = buildODataQuery({ top: pageSize, skip, orderBy: 'accidentDate desc' });
+      // DAB uses $first instead of $top, fetch all for client-side pagination
+      const query = buildODataQuery({ top: 500, orderBy: 'AccidentDate desc' });
       const res = await fetch(`${apiUrl}/RailroadAccident${query}`, {
-        headers: { Authorization: `Bearer ${response.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!res.ok) throw new Error('Failed to fetch railroad accidents');
       return res.json() as Promise<ApiResponse<RailroadAccident>>;
     },
   });
+
+  // Client-side pagination
+  const paginatedData = data?.value?.slice(skip, skip + pageSize) || [];
 
   // CRUD handlers
   const handleCreate = () => {
@@ -720,16 +730,13 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
   const handleSave = async (formData: Partial<RailroadAccident>) => {
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
       if (modalMode === 'create') {
-        await createRecord('/RailroadAccident', formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await createRecord('/RailroadAccident', formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       } else if (modalMode === 'edit' && selectedRecord) {
-        await updateRecord('/RailroadAccident', selectedRecord.id, formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await updateRecord('/RailroadAccident', (selectedRecord as any).Id, formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       }
 
       queryClient.invalidateQueries({ queryKey: ['railroadAccidents'] });
@@ -746,12 +753,9 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
     if (!selectedRecord) return;
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      await deleteRecord('/RailroadAccident', selectedRecord.id, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+      await deleteRecord('/RailroadAccident', (selectedRecord as any).Id, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       queryClient.invalidateQueries({ queryKey: ['railroadAccidents'] });
       setShowModal(false);
     } catch (err) {
@@ -762,29 +766,29 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
     }
   };
 
-  // Field definitions for CrudModal
+  // Field definitions for CrudModal - use PascalCase to match DAB response
   const fields = [
-    { name: 'reportingRailroadName', label: 'Railroad Name', type: 'text' as const, required: true },
-    { name: 'accidentDate', label: 'Accident Date', type: 'date' as const, required: true },
-    { name: 'stateId', label: 'State', type: 'select' as const, required: true, options: states?.map(s => ({ value: s.id, label: s.name })) || [] },
-    { name: 'accidentType', label: 'Accident Type', type: 'select' as const, required: true, options: [
+    { name: 'ReportingRailroadName', label: 'Railroad Name', type: 'text' as const, required: true },
+    { name: 'AccidentDate', label: 'Accident Date', type: 'date' as const, required: true },
+    { name: 'StateId', label: 'State', type: 'select' as const, required: true, options: states?.map((s: any) => ({ value: s.Id, label: s.Name })) || [] },
+    { name: 'AccidentType', label: 'Accident Type', type: 'select' as const, required: true, options: [
       { value: 'Derailment', label: 'Derailment' },
       { value: 'Collision', label: 'Collision' },
       { value: 'Crossing Incident', label: 'Crossing Incident' },
       { value: 'Fire/Explosion', label: 'Fire/Explosion' },
       { value: 'Other', label: 'Other' },
     ]},
-    { name: 'trainSpeed', label: 'Train Speed (mph)', type: 'number' as const },
-    { name: 'totalKilled', label: 'Total Killed', type: 'number' as const },
-    { name: 'totalInjured', label: 'Total Injured', type: 'number' as const },
-    { name: 'totalDamage', label: 'Total Damage ($)', type: 'number' as const },
-    { name: 'hazmatReleased', label: 'Hazmat Released', type: 'boolean' as const },
+    { name: 'TrainSpeed', label: 'Train Speed (mph)', type: 'number' as const },
+    { name: 'TotalKilled', label: 'Total Killed', type: 'number' as const },
+    { name: 'TotalInjured', label: 'Total Injured', type: 'number' as const },
+    { name: 'TotalDamage', label: 'Total Damage ($)', type: 'number' as const },
+    { name: 'HazmatCars', label: 'Hazmat Cars', type: 'number' as const },
   ];
 
   if (isLoading) return <LoadingSpinner text="Loading railroad accidents..." />;
   if (error) return <div className="text-red-600">Error: {(error as Error).message}</div>;
 
-  const totalItems = data?.['@odata.count'] || data?.value.length || 0;
+  const totalItems = data?.value?.length || 0;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   return (
@@ -793,7 +797,7 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
         <CreateButton onClick={handleCreate} label="Add Accident" />
       </div>
 
-      {!data?.value.length ? (
+      {!paginatedData.length ? (
         <EmptyState message="No railroad accidents found" />
       ) : (
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -813,31 +817,31 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
                 </tr>
               </thead>
               <tbody>
-                {data.value.map((accident, idx) => (
-                  <tr key={accident.id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
-                    <td className="px-4 py-3 text-sm">{formatDate(accident.accidentDate)}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{accident.reportingRailroadName}</td>
+                {paginatedData.map((accident: any, idx: number) => (
+                  <tr key={accident.Id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
+                    <td className="px-4 py-3 text-sm">{formatDate(accident.AccidentDate)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{accident.ReportingRailroadName}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="info">{getStateCode(accident.stateId)}</Badge>
+                      <Badge variant="info">{getStateCode(accident.StateId)}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm">{accident.accidentType}</td>
-                    <td className="px-4 py-3 text-sm text-right">{accident.trainSpeed ?? '-'} mph</td>
+                    <td className="px-4 py-3 text-sm">{accident.AccidentType}</td>
+                    <td className="px-4 py-3 text-sm text-right">{accident.TrainSpeed ?? '-'} mph</td>
                     <td className="px-4 py-3 text-right">
-                      {accident.totalKilled > 0 ? (
-                        <Badge variant="danger">{accident.totalKilled}</Badge>
+                      {accident.TotalKilled > 0 ? (
+                        <Badge variant="danger">{accident.TotalKilled}</Badge>
                       ) : (
                         <span className="text-slate-400">0</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {accident.totalInjured > 0 ? (
-                        <Badge variant="warning">{accident.totalInjured}</Badge>
+                      {accident.TotalInjured > 0 ? (
+                        <Badge variant="warning">{accident.TotalInjured}</Badge>
                       ) : (
                         <span className="text-slate-400">0</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {formatCurrency(accident.totalDamage, true)}
+                      {formatCurrency(accident.TotalDamage, true)}
                     </td>
                     <td className="px-4 py-3">
                       <ActionButtons
@@ -879,7 +883,7 @@ function RailroadAccidentTable({ getStateCode, color, states }: { getStateCode: 
 }
 
 function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: number) => string; color: string; states?: State[] }) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
   const queryClient = useQueryClient();
   const { page, pageSize, skip, handlePageChange, handlePageSizeChange } = usePagination(25);
 
@@ -890,23 +894,24 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['bridges', page, pageSize],
+    queryKey: ['bridges'],
     queryFn: async () => {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      const query = buildODataQuery({ top: pageSize, skip, orderBy: 'averageDailyTraffic desc' });
+      // DAB uses $first instead of $top, fetch all for client-side pagination
+      const query = buildODataQuery({ top: 500, orderBy: 'AverageDailyTraffic desc' });
       const res = await fetch(`${apiUrl}/Bridge${query}`, {
-        headers: { Authorization: `Bearer ${response.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!res.ok) throw new Error('Failed to fetch bridges');
       return res.json() as Promise<ApiResponse<Bridge>>;
     },
   });
+
+  // Client-side pagination
+  const paginatedData = data?.value?.slice(skip, skip + pageSize) || [];
 
   // CRUD handlers
   const handleCreate = () => {
@@ -936,16 +941,13 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
   const handleSave = async (formData: Partial<Bridge>) => {
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
       if (modalMode === 'create') {
-        await createRecord('/Bridge', formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await createRecord('/Bridge', formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       } else if (modalMode === 'edit' && selectedRecord) {
-        await updateRecord('/Bridge', selectedRecord.id, formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await updateRecord('/Bridge', (selectedRecord as any).Id, formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       }
 
       queryClient.invalidateQueries({ queryKey: ['bridges'] });
@@ -962,12 +964,9 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
     if (!selectedRecord) return;
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      await deleteRecord('/Bridge', selectedRecord.id, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+      await deleteRecord('/Bridge', (selectedRecord as any).Id, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       queryClient.invalidateQueries({ queryKey: ['bridges'] });
       setShowModal(false);
     } catch (err) {
@@ -978,14 +977,14 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
     }
   };
 
-  // Field definitions for CrudModal
+  // Field definitions for CrudModal - use PascalCase to match DAB response
   const fields = [
-    { name: 'structureNumber', label: 'Structure Number', type: 'text' as const, required: true },
-    { name: 'stateId', label: 'State', type: 'select' as const, required: true, options: states?.map(s => ({ value: s.id, label: s.name })) || [] },
-    { name: 'facilityCarried', label: 'Facility Carried', type: 'text' as const },
-    { name: 'featuresIntersected', label: 'Features Intersected', type: 'text' as const },
-    { name: 'yearBuilt', label: 'Year Built', type: 'number' as const },
-    { name: 'mainStructureType', label: 'Structure Type', type: 'select' as const, options: [
+    { name: 'StructureNumber', label: 'Structure Number', type: 'text' as const, required: true },
+    { name: 'StateId', label: 'State', type: 'select' as const, required: true, options: states?.map((s: any) => ({ value: s.Id, label: s.Name })) || [] },
+    { name: 'FacilityCarried', label: 'Facility Carried', type: 'text' as const },
+    { name: 'FeaturesIntersected', label: 'Features Intersected', type: 'text' as const },
+    { name: 'YearBuilt', label: 'Year Built', type: 'number' as const },
+    { name: 'MainStructureType', label: 'Structure Type', type: 'select' as const, options: [
       { value: 'Steel', label: 'Steel' },
       { value: 'Concrete', label: 'Concrete' },
       { value: 'Prestressed Concrete', label: 'Prestressed Concrete' },
@@ -993,14 +992,14 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
       { value: 'Masonry', label: 'Masonry' },
       { value: 'Other', label: 'Other' },
     ]},
-    { name: 'overallCondition', label: 'Overall Condition', type: 'select' as const, options: [
+    { name: 'OverallCondition', label: 'Overall Condition', type: 'select' as const, options: [
       { value: 'Good', label: 'Good' },
       { value: 'Fair', label: 'Fair' },
       { value: 'Poor', label: 'Poor' },
     ]},
-    { name: 'structurallyDeficient', label: 'Structurally Deficient', type: 'boolean' as const },
-    { name: 'averageDailyTraffic', label: 'Average Daily Traffic', type: 'number' as const },
-    { name: 'truckPercent', label: 'Truck Percentage', type: 'number' as const },
+    { name: 'StructurallyDeficient', label: 'Structurally Deficient', type: 'boolean' as const },
+    { name: 'AverageDailyTraffic', label: 'Average Daily Traffic', type: 'number' as const },
+    { name: 'AverageDailyTruckTraffic', label: 'Daily Truck Traffic', type: 'number' as const },
   ];
 
   const getConditionBadge = (condition: string | null, isDeficient: boolean) => {
@@ -1014,7 +1013,7 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
   if (isLoading) return <LoadingSpinner text="Loading bridges..." />;
   if (error) return <div className="text-red-600">Error: {(error as Error).message}</div>;
 
-  const totalItems = data?.['@odata.count'] || data?.value.length || 0;
+  const totalItems = data?.value?.length || 0;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   return (
@@ -1023,7 +1022,7 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
         <CreateButton onClick={handleCreate} label="Add Bridge" />
       </div>
 
-      {!data?.value.length ? (
+      {!paginatedData.length ? (
         <EmptyState message="No bridges found" />
       ) : (
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -1042,20 +1041,20 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
                 </tr>
               </thead>
               <tbody>
-                {data.value.map((bridge, idx) => (
-                  <tr key={bridge.id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
-                    <td className="px-4 py-3 font-mono text-sm">{bridge.structureNumber}</td>
+                {paginatedData.map((bridge: any, idx: number) => (
+                  <tr key={bridge.Id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
+                    <td className="px-4 py-3 font-mono text-sm">{bridge.StructureNumber}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="info">{getStateCode(bridge.stateId)}</Badge>
+                      <Badge variant="info">{getStateCode(bridge.StateId)}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm">{bridge.facilityCarried || '-'}</td>
-                    <td className="px-4 py-3 text-sm">{bridge.mainStructureType || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-right">{bridge.yearBuilt || '-'}</td>
+                    <td className="px-4 py-3 text-sm">{bridge.FacilityCarried || '-'}</td>
+                    <td className="px-4 py-3 text-sm">{bridge.MainStructureType || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-right">{bridge.YearBuilt || '-'}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {formatNumber(bridge.averageDailyTraffic)}
+                      {formatNumber(bridge.AverageDailyTraffic)}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {getConditionBadge(bridge.overallCondition, bridge.structurallyDeficient)}
+                      {getConditionBadge(bridge.OverallCondition, bridge.StructurallyDeficient)}
                     </td>
                     <td className="px-4 py-3">
                       <ActionButtons
@@ -1097,7 +1096,7 @@ function BridgeTable({ getStateCode, color, states }: { getStateCode: (id: numbe
 }
 
 function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id: number) => string; color: string; states?: State[] }) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
   const queryClient = useQueryClient();
   const { page, pageSize, skip, handlePageChange, handlePageSizeChange } = usePagination(25);
 
@@ -1108,23 +1107,24 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['transitAgencies', page, pageSize],
+    queryKey: ['transitAgencies'],
     queryFn: async () => {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      const query = buildODataQuery({ top: pageSize, skip, orderBy: 'unlinkedPassengerTrips desc' });
+      // DAB uses $first instead of $top, fetch all for client-side pagination
+      const query = buildODataQuery({ top: 500, orderBy: 'UnlinkedPassengerTrips desc' });
       const res = await fetch(`${apiUrl}/TransitAgency${query}`, {
-        headers: { Authorization: `Bearer ${response.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!res.ok) throw new Error('Failed to fetch transit agencies');
       return res.json() as Promise<ApiResponse<TransitAgency>>;
     },
   });
+
+  // Client-side pagination
+  const paginatedData = data?.value?.slice(skip, skip + pageSize) || [];
 
   // CRUD handlers
   const handleCreate = () => {
@@ -1154,16 +1154,13 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
   const handleSave = async (formData: Partial<TransitAgency>) => {
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
       if (modalMode === 'create') {
-        await createRecord('/TransitAgency', formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await createRecord('/TransitAgency', formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       } else if (modalMode === 'edit' && selectedRecord) {
-        await updateRecord('/TransitAgency', selectedRecord.id, formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await updateRecord('/TransitAgency', (selectedRecord as any).Id, formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       }
 
       queryClient.invalidateQueries({ queryKey: ['transitAgencies'] });
@@ -1180,12 +1177,9 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
     if (!selectedRecord) return;
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      await deleteRecord('/TransitAgency', selectedRecord.id, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+      await deleteRecord('/TransitAgency', (selectedRecord as any).Id, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       queryClient.invalidateQueries({ queryKey: ['transitAgencies'] });
       setShowModal(false);
     } catch (err) {
@@ -1196,14 +1190,14 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
     }
   };
 
-  // Field definitions for CrudModal
+  // Field definitions for CrudModal - use PascalCase to match DAB response
   const fields = [
-    { name: 'ntdId', label: 'NTD ID', type: 'text' as const, required: true },
-    { name: 'agencyName', label: 'Agency Name', type: 'text' as const, required: true },
-    { name: 'city', label: 'City', type: 'text' as const, required: true },
-    { name: 'stateId', label: 'State', type: 'select' as const, required: true, options: states?.map(s => ({ value: s.id, label: s.name })) || [] },
-    { name: 'reportYear', label: 'Report Year', type: 'number' as const, required: true },
-    { name: 'primaryMode', label: 'Primary Mode', type: 'select' as const, options: [
+    { name: 'NtdId', label: 'NTD ID', type: 'text' as const, required: true },
+    { name: 'AgencyName', label: 'Agency Name', type: 'text' as const, required: true },
+    { name: 'City', label: 'City', type: 'text' as const, required: true },
+    { name: 'StateId', label: 'State', type: 'select' as const, required: true, options: states?.map((s: any) => ({ value: s.Id, label: s.Name })) || [] },
+    { name: 'ReportYear', label: 'Report Year', type: 'number' as const, required: true },
+    { name: 'OrganizationType', label: 'Organization Type', type: 'select' as const, options: [
       { value: 'Bus', label: 'Bus' },
       { value: 'Heavy Rail', label: 'Heavy Rail' },
       { value: 'Light Rail', label: 'Light Rail' },
@@ -1212,17 +1206,17 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
       { value: 'Ferry', label: 'Ferry' },
       { value: 'Other', label: 'Other' },
     ]},
-    { name: 'unlinkedPassengerTrips', label: 'Annual Ridership', type: 'number' as const },
-    { name: 'vehicleRevenueMiles', label: 'Vehicle Revenue Miles', type: 'number' as const },
-    { name: 'vehiclesOperatedMaxService', label: 'Vehicles (Max Service)', type: 'number' as const },
-    { name: 'totalOperatingExpenses', label: 'Operating Expenses ($)', type: 'number' as const },
-    { name: 'fareRevenue', label: 'Fare Revenue ($)', type: 'number' as const },
+    { name: 'UnlinkedPassengerTrips', label: 'Annual Ridership', type: 'number' as const },
+    { name: 'VehicleRevenueMiles', label: 'Vehicle Revenue Miles', type: 'number' as const },
+    { name: 'VehiclesOperatedMaxService', label: 'Vehicles (Max Service)', type: 'number' as const },
+    { name: 'TotalOperatingExpenses', label: 'Operating Expenses ($)', type: 'number' as const },
+    { name: 'FareRevenuesEarned', label: 'Fare Revenue ($)', type: 'number' as const },
   ];
 
   if (isLoading) return <LoadingSpinner text="Loading transit agencies..." />;
   if (error) return <div className="text-red-600">Error: {(error as Error).message}</div>;
 
-  const totalItems = data?.['@odata.count'] || data?.value.length || 0;
+  const totalItems = data?.value?.length || 0;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   return (
@@ -1231,7 +1225,7 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
         <CreateButton onClick={handleCreate} label="Add Agency" />
       </div>
 
-      {!data?.value.length ? (
+      {!paginatedData.length ? (
         <EmptyState message="No transit agencies found" />
       ) : (
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -1251,25 +1245,25 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
                 </tr>
               </thead>
               <tbody>
-                {data.value.map((agency, idx) => (
-                  <tr key={agency.id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
-                    <td className="px-4 py-3 font-mono text-sm">{agency.ntdId}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{agency.agencyName}</td>
-                    <td className="px-4 py-3 text-sm">{agency.city}</td>
+                {paginatedData.map((agency: any, idx: number) => (
+                  <tr key={agency.Id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
+                    <td className="px-4 py-3 font-mono text-sm">{agency.NtdId}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-800">{agency.AgencyName}</td>
+                    <td className="px-4 py-3 text-sm">{agency.City}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="info">{getStateCode(agency.stateId)}</Badge>
+                      <Badge variant="info">{getStateCode(agency.StateId)}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">{agency.reportYear}</td>
+                    <td className="px-4 py-3 text-sm text-right">{agency.ReportYear}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {agency.unlinkedPassengerTrips
-                        ? `${(agency.unlinkedPassengerTrips / 1000000).toFixed(1)}M`
+                      {agency.UnlinkedPassengerTrips
+                        ? `${(agency.UnlinkedPassengerTrips / 1000000).toFixed(1)}M`
                         : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
-                      {formatNumber(agency.vehiclesOperatedMaxService)}
+                      {formatNumber(agency.VehiclesOperatedMaxService)}
                     </td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {formatCurrency(agency.totalOperatingExpenses, true)}
+                      {formatCurrency(agency.TotalOperatingExpenses, true)}
                     </td>
                     <td className="px-4 py-3">
                       <ActionButtons
@@ -1311,7 +1305,7 @@ function TransitAgencyTable({ getStateCode, color, states }: { getStateCode: (id
 }
 
 function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (id: number) => string; color: string; states?: State[] }) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
   const queryClient = useQueryClient();
   const { page, pageSize, skip, handlePageChange, handlePageSizeChange } = usePagination(25);
 
@@ -1322,23 +1316,24 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['vehicleFatalities', page, pageSize],
+    queryKey: ['vehicleFatalities'],
     queryFn: async () => {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      const query = buildODataQuery({ top: pageSize, skip, orderBy: 'crashDate desc' });
+      // DAB uses $first instead of $top, fetch all for client-side pagination
+      const query = buildODataQuery({ top: 500, orderBy: 'CrashDate desc' });
       const res = await fetch(`${apiUrl}/VehicleFatality${query}`, {
-        headers: { Authorization: `Bearer ${response.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!res.ok) throw new Error('Failed to fetch vehicle fatalities');
       return res.json() as Promise<ApiResponse<VehicleFatality>>;
     },
   });
+
+  // Client-side pagination
+  const paginatedData = data?.value?.slice(skip, skip + pageSize) || [];
 
   // CRUD handlers
   const handleCreate = () => {
@@ -1368,16 +1363,13 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
   const handleSave = async (formData: Partial<VehicleFatality>) => {
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
       if (modalMode === 'create') {
-        await createRecord('/VehicleFatality', formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await createRecord('/VehicleFatality', formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       } else if (modalMode === 'edit' && selectedRecord) {
-        await updateRecord('/VehicleFatality', selectedRecord.id, formData, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+        await updateRecord('/VehicleFatality', (selectedRecord as any).Id, formData, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       }
 
       queryClient.invalidateQueries({ queryKey: ['vehicleFatalities'] });
@@ -1394,12 +1386,9 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
     if (!selectedRecord) return;
     setIsSubmitting(true);
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
+      const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-      await deleteRecord('/VehicleFatality', selectedRecord.id, response.accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
+      await deleteRecord('/VehicleFatality', (selectedRecord as any).Id, accessToken, { baseUrl: apiUrl, graphqlUrl: '' });
       queryClient.invalidateQueries({ queryKey: ['vehicleFatalities'] });
       setShowModal(false);
     } catch (err) {
@@ -1410,14 +1399,14 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
     }
   };
 
-  // Field definitions for CrudModal
+  // Field definitions for CrudModal - use PascalCase to match DAB response
   const fields = [
-    { name: 'caseNumber', label: 'Case Number', type: 'text' as const, required: true },
-    { name: 'crashDate', label: 'Crash Date', type: 'date' as const, required: true },
-    { name: 'stateId', label: 'State', type: 'select' as const, required: true, options: states?.map(s => ({ value: s.id, label: s.name })) || [] },
-    { name: 'numberOfFatalities', label: 'Number of Fatalities', type: 'number' as const, required: true },
-    { name: 'numberOfVehicles', label: 'Number of Vehicles', type: 'number' as const },
-    { name: 'mannerOfCollision', label: 'Manner of Collision', type: 'select' as const, options: [
+    { name: 'CaseNumber', label: 'Case Number', type: 'text' as const, required: true },
+    { name: 'CrashDate', label: 'Crash Date', type: 'date' as const, required: true },
+    { name: 'StateId', label: 'State', type: 'select' as const, required: true, options: states?.map((s: any) => ({ value: s.Id, label: s.Name })) || [] },
+    { name: 'NumberOfFatalities', label: 'Number of Fatalities', type: 'number' as const, required: true },
+    { name: 'NumberOfVehicles', label: 'Number of Vehicles', type: 'number' as const },
+    { name: 'MannerOfCollision', label: 'Manner of Collision', type: 'select' as const, options: [
       { value: 'Front-to-Front', label: 'Front-to-Front' },
       { value: 'Front-to-Rear', label: 'Front-to-Rear' },
       { value: 'Angle', label: 'Angle' },
@@ -1427,21 +1416,20 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
       { value: 'Single Vehicle', label: 'Single Vehicle' },
       { value: 'Unknown', label: 'Unknown' },
     ]},
-    { name: 'landUse', label: 'Land Use', type: 'select' as const, options: [
+    { name: 'LandUse', label: 'Land Use', type: 'select' as const, options: [
       { value: 'Urban', label: 'Urban' },
       { value: 'Rural', label: 'Rural' },
     ]},
-    { name: 'functionalSystem', label: 'Functional System', type: 'select' as const, options: [
+    { name: 'RoadwayFunctionClass', label: 'Roadway Class', type: 'select' as const, options: [
       { value: 'Interstate', label: 'Interstate' },
       { value: 'Principal Arterial', label: 'Principal Arterial' },
       { value: 'Minor Arterial', label: 'Minor Arterial' },
       { value: 'Collector', label: 'Collector' },
       { value: 'Local', label: 'Local' },
     ]},
-    { name: 'involvesSpeedRelated', label: 'Speed Related', type: 'boolean' as const },
-    { name: 'involvesAlcohol', label: 'Alcohol Involved', type: 'boolean' as const },
-    { name: 'involvesDrugs', label: 'Drugs Involved', type: 'boolean' as const },
-    { name: 'weatherCondition', label: 'Weather Condition', type: 'select' as const, options: [
+    { name: 'InvolvesSpeedRelated', label: 'Speed Related', type: 'boolean' as const },
+    { name: 'NumberOfDrunkDrivers', label: 'Drunk Drivers', type: 'number' as const },
+    { name: 'WeatherCondition', label: 'Weather Condition', type: 'select' as const, options: [
       { value: 'Clear', label: 'Clear' },
       { value: 'Rain', label: 'Rain' },
       { value: 'Snow', label: 'Snow' },
@@ -1454,7 +1442,7 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
   if (isLoading) return <LoadingSpinner text="Loading vehicle fatalities..." />;
   if (error) return <div className="text-red-600">Error: {(error as Error).message}</div>;
 
-  const totalItems = data?.['@odata.count'] || data?.value.length || 0;
+  const totalItems = data?.value?.length || 0;
   const totalPages = Math.ceil(totalItems / pageSize);
 
   return (
@@ -1463,7 +1451,7 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
         <CreateButton onClick={handleCreate} label="Add Record" />
       </div>
 
-      {!data?.value.length ? (
+      {!paginatedData.length ? (
         <EmptyState message="No vehicle fatalities found" />
       ) : (
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -1483,25 +1471,25 @@ function VehicleFatalityTable({ getStateCode, color, states }: { getStateCode: (
                 </tr>
               </thead>
               <tbody>
-                {data.value.map((fatality, idx) => (
-                  <tr key={fatality.id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
-                    <td className="px-4 py-3 font-mono text-sm">{fatality.caseNumber}</td>
-                    <td className="px-4 py-3 text-sm">{formatDate(fatality.crashDate)}</td>
+                {paginatedData.map((fatality: any, idx: number) => (
+                  <tr key={fatality.Id} className={`border-b hover:bg-slate-50 transition-colors ${idx % 2 ? 'bg-slate-25' : ''}`}>
+                    <td className="px-4 py-3 font-mono text-sm">{fatality.CaseNumber}</td>
+                    <td className="px-4 py-3 text-sm">{formatDate(fatality.CrashDate)}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="info">{getStateCode(fatality.stateId)}</Badge>
+                      <Badge variant="info">{getStateCode(fatality.StateId)}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm">{fatality.mannerOfCollision || '-'}</td>
+                    <td className="px-4 py-3 text-sm">{fatality.MannerOfCollision || '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      <Badge variant={fatality.landUse === 'Urban' ? 'info' : 'warning'}>
-                        {fatality.landUse || 'Unknown'}
+                      <Badge variant={fatality.LandUse === 'Urban' ? 'info' : 'warning'}>
+                        {fatality.LandUse || 'Unknown'}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">{fatality.numberOfVehicles}</td>
+                    <td className="px-4 py-3 text-sm text-right">{fatality.NumberOfVehicles}</td>
                     <td className="px-4 py-3 text-right">
-                      <Badge variant="danger">{fatality.numberOfFatalities}</Badge>
+                      <Badge variant="danger">{fatality.NumberOfFatalities}</Badge>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {fatality.involvesSpeedRelated ? (
+                      {fatality.InvolvesSpeedRelated ? (
                         <span className="text-red-600 font-medium">Yes</span>
                       ) : (
                         <span className="text-slate-400">No</span>

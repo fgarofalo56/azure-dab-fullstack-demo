@@ -1,6 +1,18 @@
 # Deployment Guide: Azure Portal
 
-This guide walks you through deploying the DOT Transportation Data Portal manually using the Azure Portal. This approach is ideal for learning, demonstrations, or when script-based deployment isn't preferred.
+<div align="center">
+
+![Azure Portal](https://img.shields.io/badge/Azure%20Portal-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
+![Container Apps](https://img.shields.io/badge/Container%20Apps-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![SQL Database](https://img.shields.io/badge/Azure%20SQL-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white)
+
+</div>
+
+This guide walks you through deploying the DOT Transportation Data Portal manually using the Azure Portal with Azure Container Apps. This approach is ideal for learning, demonstrations, or when script-based deployment isn't preferred.
+
+> **Estimated Time:** 60-90 minutes
+> **Difficulty:** Intermediate
+> **Prerequisites:** Azure subscription with Contributor access
 
 ---
 
@@ -10,12 +22,13 @@ This guide walks you through deploying the DOT Transportation Data Portal manual
 - [Step 1: Create Resource Group](#step-1-create-resource-group)
 - [Step 2: Create Azure Container Registry](#step-2-create-azure-container-registry)
 - [Step 3: Create Azure SQL Database](#step-3-create-azure-sql-database)
-- [Step 4: Create Azure Storage Account](#step-4-create-azure-storage-account)
+- [Step 4: Create Log Analytics Workspace](#step-4-create-log-analytics-workspace)
 - [Step 5: Register Azure AD Applications](#step-5-register-azure-ad-applications)
 - [Step 6: Build and Push Container Images](#step-6-build-and-push-container-images)
-- [Step 7: Create Container Instances](#step-7-create-container-instances)
-- [Step 8: Initialize Database](#step-8-initialize-database)
-- [Step 9: Test the Deployment](#step-9-test-the-deployment)
+- [Step 7: Create Container Apps Environment](#step-7-create-container-apps-environment)
+- [Step 8: Create Container Apps](#step-8-create-container-apps)
+- [Step 9: Initialize Database](#step-9-initialize-database)
+- [Step 10: Test the Deployment](#step-10-test-the-deployment)
 - [Cleanup](#cleanup)
 
 ---
@@ -29,12 +42,14 @@ graph TB
     subgraph Azure["Azure Resource Group"]
         ACR["Azure Container Registry<br/>Container Images"]
         SQL["Azure SQL Database<br/>DOT Transportation Data"]
-        Storage["Azure Storage<br/>File Share"]
 
-        subgraph ACI["Azure Container Instances"]
+        subgraph CAE["Container Apps Environment"]
             DAB["Data API Builder<br/>REST + GraphQL APIs"]
             Frontend["React Frontend<br/>DOT Portal UI"]
         end
+
+        AppInsights["Application Insights<br/>Telemetry"]
+        LAW["Log Analytics<br/>Diagnostics"]
     end
 
     subgraph Auth["Microsoft Entra ID"]
@@ -46,56 +61,67 @@ graph TB
     DAB --> SQL
     DAB --> AppReg
     Frontend --> AppReg
+    DAB -.-> AppInsights
+    Frontend -.-> AppInsights
 
     style Azure fill:#e3f2fd
     style Auth fill:#fff3e0
+    style CAE fill:#c8e6c9
 ```
-
-### Estimated Time
-- **First-time setup:** 45-60 minutes
-- **Repeat deployment:** 20-30 minutes
 
 ### Cost Estimate (Development)
 - **Azure SQL:** ~$5/month (Basic tier)
-- **Container Instances:** ~$20/month (2 containers)
+- **Container Apps:** ~$0-20/month (scale-to-zero)
 - **Container Registry:** ~$5/month (Basic tier)
-- **Storage:** ~$1/month
+- **Log Analytics:** ~$5/month (based on ingestion)
 
 ---
 
 ## Step 1: Create Resource Group
+
+![Resource Groups](https://img.shields.io/badge/Resource-Groups-0078D4?style=flat-square&logo=microsoft-azure)
 
 1. Navigate to [Azure Portal](https://portal.azure.com)
 2. Click **+ Create a resource**
 3. Search for **Resource group**
 4. Click **Create**
 
+![Search Resource Groups](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/media/manage-resource-groups-portal/search-resource-group.png)
+
 ### Configuration
 
 | Field | Value |
 |-------|-------|
 | Subscription | Your subscription |
-| Resource group | `rg-dot-demo` |
-| Region | `East US` (or preferred region) |
+| Resource group | `rg-dab-demo` |
+| Region | `East US 2` (or preferred region) |
 
 5. Click **Review + create** → **Create**
+
+> **Tip:** Use a consistent naming convention. The `rg-` prefix indicates this is a Resource Group.
 
 ---
 
 ## Step 2: Create Azure Container Registry
 
-1. Navigate to **Resource groups** → `rg-dot-demo`
+![Container Registry](https://img.shields.io/badge/Container-Registry-5C2D91?style=flat-square&logo=docker)
+
+1. Navigate to **Resource groups** → `rg-dab-demo`
 2. Click **+ Create**
 3. Search for **Container Registry**
 4. Click **Create**
+
+![Create ACR](https://learn.microsoft.com/en-us/azure/container-registry/media/container-registry-get-started-portal/qs-portal-01.png)
 
 ### Basics Tab
 
 | Field | Value |
 |-------|-------|
-| Registry name | `acrdotdemo` (must be globally unique) |
+| Registry name | `acrdabdemo` (must be globally unique) |
 | Location | Same as resource group |
 | SKU | **Basic** |
+
+> **Note:** Registry names must be globally unique, 5-50 alphanumeric characters, no hyphens.
 
 ### Access Keys (After Creation)
 
@@ -104,19 +130,25 @@ graph TB
 3. Enable **Admin user**
 4. Note the **Login server**, **Username**, and **Password**
 
+![ACR Access Keys](https://learn.microsoft.com/en-us/azure/container-registry/media/container-registry-authentication/acr-access-keys.png)
+
 ```
-Login server: acrdotdemo.azurecr.io
-Username:     acrdotdemo
+Login server: acrdabdemo.azurecr.io
+Username:     acrdabdemo
 Password:     xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+> **Important:** Store these credentials securely. You'll need them for pushing container images.
 
 ---
 
 ## Step 3: Create Azure SQL Database
 
+![SQL Database](https://img.shields.io/badge/Azure%20SQL-Database-CC2927?style=flat-square&logo=microsoft-sql-server)
+
 ### 3.1 Create SQL Server
 
-1. Navigate to **Resource groups** → `rg-dot-demo`
+1. Navigate to **Resource groups** → `rg-dab-demo`
 2. Click **+ Create**
 3. Search for **SQL Database**
 4. Click **Create**
@@ -125,9 +157,11 @@ Password:     xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Click **Create new** under Server:
 
+![Create SQL Server](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/create-database-server.png)
+
 | Field | Value |
 |-------|-------|
-| Server name | `sql-dot-demo` (globally unique) |
+| Server name | `sql-dab-demo` (globally unique) |
 | Location | Same as resource group |
 | Authentication | **Use SQL authentication** |
 | Server admin login | `sqladmin` |
@@ -137,7 +171,7 @@ Click **Create new** under Server:
 
 | Field | Value |
 |-------|-------|
-| Database name | `dotdemo-db` |
+| Database name | `dabdemo-db` |
 | Want to use SQL elastic pool? | **No** |
 | Workload environment | **Development** |
 | Compute + storage | **Basic** (5 DTUs, 2GB) |
@@ -150,6 +184,10 @@ Click **Create new** under Server:
 | Allow Azure services | **Yes** |
 | Add current client IP | **Yes** |
 
+![SQL Firewall Settings](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/secure-database-tutorial/firewall-settings.png)
+
+> **Security:** "Allow Azure services" enables Container Apps to connect. For production, consider using Private Endpoints.
+
 5. Click **Review + create** → **Create**
 
 ### 3.2 Note Connection Details
@@ -161,46 +199,40 @@ After creation, navigate to your database:
 3. Replace `{your_password}` with actual password
 
 ```
-Server=sql-dot-demo.database.windows.net;Database=dotdemo-db;User Id=sqladmin;Password=<your-password>;Encrypt=True;TrustServerCertificate=False;
+Server=sql-dab-demo.database.windows.net;Database=dabdemo-db;User Id=sqladmin;Password=<your-password>;Encrypt=True;TrustServerCertificate=False;
 ```
 
 ---
 
-## Step 4: Create Azure Storage Account
+## Step 4: Create Log Analytics Workspace
 
-1. Navigate to **Resource groups** → `rg-dot-demo`
+1. Navigate to **Resource groups** → `rg-dab-demo`
 2. Click **+ Create**
-3. Search for **Storage account**
+3. Search for **Log Analytics workspace**
 4. Click **Create**
 
 ### Configuration
 
 | Field | Value |
 |-------|-------|
-| Storage account name | `stdotdemo` (globally unique) |
+| Name | `law-dab-demo` |
 | Region | Same as resource group |
-| Performance | **Standard** |
-| Redundancy | **LRS** |
+| Pricing tier | **Pay-as-you-go** |
 
-### Create File Share
-
-After storage account is created:
-
-1. Navigate to your storage account
-2. Go to **Data storage** → **File shares**
-3. Click **+ File share**
-4. Name: `dab-config`
-5. Quota: `1 GB`
-6. Click **Create**
+5. Click **Review + create** → **Create**
 
 ---
 
 ## Step 5: Register Azure AD Applications
 
+![Entra ID](https://img.shields.io/badge/Microsoft-Entra%20ID-FFB900?style=flat-square&logo=microsoft)
+
 ### 5.1 Create DAB (Backend) App Registration
 
 1. Navigate to **Microsoft Entra ID** (Azure Active Directory)
 2. Go to **App registrations** → **+ New registration**
+
+![App Registration](https://learn.microsoft.com/en-us/entra/identity-platform/media/quickstart-register-app/portal-02-app-reg-01.png)
 
 | Field | Value |
 |-------|-------|
@@ -209,6 +241,8 @@ After storage account is created:
 | Redirect URI | (leave blank) |
 
 3. Click **Register**
+
+> **Tip:** The DAB API registration doesn't need redirect URIs - it validates tokens, not interactive login.
 
 #### Configure API Scope
 
@@ -249,8 +283,8 @@ After storage account is created:
 2. Under **Single-page application** → **Redirect URIs**
 3. Click **Add URI** and add your production URLs:
    - `http://localhost:3000`
-   - `http://<frontend-aci-url>`
-   - `https://<custom-domain>` (if applicable)
+   - `https://<container-app-url>` (add after deployment)
+   - `https://<front-door-url>` (if using Front Door)
 
 #### Add API Permissions
 
@@ -288,7 +322,7 @@ This step requires Docker Desktop and Azure CLI on your local machine.
 az login
 
 # Login to ACR
-az acr login --name acrdotdemo
+az acr login --name acrdabdemo
 ```
 
 ### 6.2 Build and Push DAB Image
@@ -298,10 +332,10 @@ az acr login --name acrdotdemo
 cd src/dab-config
 
 # Build image
-docker build -t acrdotdemo.azurecr.io/dab:latest .
+docker build -t acrdabdemo.azurecr.io/dab:latest .
 
 # Push to ACR
-docker push acrdotdemo.azurecr.io/dab:latest
+docker push acrdabdemo.azurecr.io/dab:latest
 ```
 
 ### 6.3 Build and Push Frontend Image
@@ -310,113 +344,185 @@ docker push acrdotdemo.azurecr.io/dab:latest
 # Navigate to frontend directory
 cd ../frontend
 
-# Build with environment variables
-docker build -t acrdotdemo.azurecr.io/frontend:latest `
-  --build-arg VITE_API_BASE_URL="http://<dab-url>:5000/api" `
+# Build with environment variables (use relative URLs for routing)
+docker build -t acrdabdemo.azurecr.io/frontend:latest `
+  --build-arg VITE_API_BASE_URL="/api" `
+  --build-arg VITE_GRAPHQL_URL="/graphql" `
   --build-arg VITE_AZURE_AD_CLIENT_ID="<frontend-client-id>" `
   --build-arg VITE_AZURE_AD_TENANT_ID="<tenant-id>" `
   .
 
 # Push to ACR
-docker push acrdotdemo.azurecr.io/frontend:latest
+docker push acrdabdemo.azurecr.io/frontend:latest
 ```
 
 ---
 
-## Step 7: Create Container Instances
+## Step 7: Create Container Apps Environment
 
-### 7.1 Create DAB Container Instance
+![Container Apps](https://img.shields.io/badge/Container-Apps-326CE5?style=flat-square&logo=kubernetes)
 
-1. Navigate to **Resource groups** → `rg-dot-demo`
+1. Navigate to **Resource groups** → `rg-dab-demo`
 2. Click **+ Create**
-3. Search for **Container Instances**
+3. Search for **Container Apps Environment**
 4. Click **Create**
 
-#### Basics Tab
+![Create Environment](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-environment-create.png)
+
+### Basics Tab
 
 | Field | Value |
 |-------|-------|
-| Container name | `dot-demo-dab` |
+| Environment name | `cae-dab-demo` |
 | Region | Same as resource group |
-| Image source | **Azure Container Registry** |
-| Registry | `acrdotdemo` |
-| Image | `dab` |
-| Image tag | `latest` |
-| OS type | **Linux** |
-| Size | **1 vCPU, 1.5 GB memory** |
+| Zone redundancy | **Disabled** (for dev) |
 
-#### Networking Tab
+### Monitoring Tab
 
 | Field | Value |
 |-------|-------|
-| Networking type | **Public** |
-| DNS name label | `dot-demo-dab` |
-| Ports | `5000` (TCP) |
+| Log Analytics workspace | Select `law-dab-demo` |
 
-#### Advanced Tab
-
-Add environment variables:
-
-| Name | Value |
-|------|-------|
-| `DATABASE_CONNECTION_STRING` | Your SQL connection string |
-| `AZURE_AD_CLIENT_ID` | DAB app client ID |
-| `AZURE_AD_TENANT_ID` | Your tenant ID |
-| `ASPNETCORE_ENVIRONMENT` | `Production` |
-
-5. Click **Review + create** → **Create**
-
-### 7.2 Create Frontend Container Instance
-
-1. Click **+ Create** → **Container Instances**
-
-#### Basics Tab
-
-| Field | Value |
-|-------|-------|
-| Container name | `dot-demo-frontend` |
-| Image source | **Azure Container Registry** |
-| Registry | `acrdotdemo` |
-| Image | `frontend` |
-| Image tag | `latest` |
-| OS type | **Linux** |
-| Size | **0.5 vCPU, 0.5 GB memory** |
-
-#### Networking Tab
-
-| Field | Value |
-|-------|-------|
-| Networking type | **Public** |
-| DNS name label | `dot-demo-frontend` |
-| Ports | `80` (TCP) |
+> **Note:** The Container Apps Environment is a shared boundary for your apps. Apps in the same environment can communicate internally.
 
 5. Click **Review + create** → **Create**
 
 ---
 
-## Step 8: Initialize Database
+## Step 8: Create Container Apps
 
-### 8.1 Connect to Azure SQL
+### 8.1 Create DAB Container App
+
+1. Navigate to **Resource groups** → `rg-dab-demo`
+2. Click **+ Create**
+3. Search for **Container App**
+4. Click **Create**
+
+![Create Container App](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-create-and-deploy.png)
+
+#### Basics Tab
+
+| Field | Value |
+|-------|-------|
+| Container app name | `ca-dab` |
+| Region | Same as resource group |
+| Container Apps Environment | Select `cae-dab-demo` |
+
+#### Container Tab
+
+| Field | Value |
+|-------|-------|
+| Use quickstart image | **Unchecked** |
+| Image source | **Azure Container Registry** |
+| Registry | `acrdabdemo` |
+| Image | `dab` |
+| Image tag | `latest` |
+| CPU and Memory | **1 vCPU, 2 Gi memory** |
+
+**Environment variables:**
+
+| Name | Source | Value |
+|------|--------|-------|
+| `DATABASE_CONNECTION_STRING` | Secret | Your SQL connection string |
+| `AZURE_AD_CLIENT_ID` | Manual | DAB app client ID |
+| `AZURE_AD_TENANT_ID` | Manual | Your tenant ID |
+| `ASPNETCORE_ENVIRONMENT` | Manual | `Production` |
+
+#### Ingress Tab
+
+| Field | Value |
+|-------|-------|
+| Ingress | **Enabled** |
+| Ingress traffic | **Accepting traffic from anywhere** |
+| Ingress type | **HTTP** |
+| Target port | `5000` |
+
+5. Click **Review + create** → **Create**
+
+#### Configure Auto-Scaling (After Creation)
+
+1. Navigate to your Container App `ca-dab`
+2. Go to **Scale and replicas**
+3. Click **Edit and deploy new revision**
+4. Go to **Scale** tab
+5. Configure:
+
+| Field | Value |
+|-------|-------|
+| Min replicas | `0` |
+| Max replicas | `10` |
+
+6. Click **Add** under Scale rules:
+   - **Name:** `http-rule`
+   - **Type:** `HTTP scaling`
+   - **Concurrent requests:** `100`
+
+7. Click **Create**
+
+### 8.2 Create Frontend Container App
+
+1. Click **+ Create** → **Container App**
+
+#### Basics Tab
+
+| Field | Value |
+|-------|-------|
+| Container app name | `ca-frontend` |
+| Container Apps Environment | Select `cae-dab-demo` |
+
+#### Container Tab
+
+| Field | Value |
+|-------|-------|
+| Image source | **Azure Container Registry** |
+| Registry | `acrdabdemo` |
+| Image | `frontend` |
+| Image tag | `latest` |
+| CPU and Memory | **0.5 vCPU, 1 Gi memory** |
+
+#### Ingress Tab
+
+| Field | Value |
+|-------|-------|
+| Ingress | **Enabled** |
+| Ingress traffic | **Accepting traffic from anywhere** |
+| Ingress type | **HTTP** |
+| Target port | `80` |
+
+5. Click **Review + create** → **Create**
+
+#### Configure Auto-Scaling
+
+Same as DAB:
+- Min replicas: `0`
+- Max replicas: `10`
+- HTTP scaling rule with `100` concurrent requests
+
+---
+
+## Step 9: Initialize Database
+
+### 9.1 Connect to Azure SQL
 
 Using **Azure Data Studio** or **SSMS**:
 
-1. Server: `sql-dot-demo.database.windows.net`
+1. Server: `sql-dab-demo.database.windows.net`
 2. Authentication: SQL Login
 3. Username: `sqladmin`
 4. Password: Your password
-5. Database: `dotdemo-db`
+5. Database: `dabdemo-db`
 
-### 8.2 Run Schema Script
+### 9.2 Run Schema Script
 
 1. Open `src/database/001-schema.sql`
 2. Execute in Azure Data Studio/SSMS
 
-### 8.3 Run Seed Data Script
+### 9.3 Run Seed Data Script
 
 1. Open `src/database/002-seed-data.sql`
 2. Execute in Azure Data Studio/SSMS
 
-### 8.4 Verify Data
+### 9.4 Verify Data
 
 ```sql
 SELECT 'Categories' AS TableName, COUNT(*) AS Records FROM Categories
@@ -429,33 +535,48 @@ UNION ALL SELECT 'VehicleFatalities', COUNT(*) FROM VehicleFatalities;
 
 ---
 
-## Step 9: Test the Deployment
+## Step 10: Test the Deployment
 
-### 9.1 Test DAB Health
+### 10.1 Get Container App URLs
 
-```
-http://dot-demo-dab.<region>.azurecontainer.io:5000/health
-```
-
-Expected response: `Healthy`
-
-### 9.2 Test API Endpoint
+1. Navigate to **Resource groups** → `rg-dab-demo`
+2. Click on **ca-dab** Container App
+3. Copy the **Application URL** from Overview
 
 ```
-http://dot-demo-dab.<region>.azurecontainer.io:5000/api/Category
+https://ca-dab.<random>.eastus2.azurecontainerapps.io
 ```
 
-(Requires authentication token)
+4. Do the same for **ca-frontend**
 
-### 9.3 Access Frontend
+### 10.2 Test API Endpoints
 
+**DAB Health Check:**
 ```
-http://dot-demo-frontend.<region>.azurecontainer.io
+https://ca-dab.<random>.eastus2.azurecontainerapps.io/
 ```
 
-1. Click **Sign in with Microsoft**
-2. Authenticate with your organization account
-3. Explore the DOT Transportation Data Portal
+**API Endpoint (requires auth):**
+```
+https://ca-dab.<random>.eastus2.azurecontainerapps.io/api/Category
+```
+
+### 10.3 Update App Registration Redirect URIs
+
+1. Navigate to **Microsoft Entra ID** → **App registrations** → `DOT-Demo-Frontend`
+2. Go to **Authentication**
+3. Add the Frontend Container App URL to Redirect URIs:
+   ```
+   https://ca-frontend.<random>.eastus2.azurecontainerapps.io
+   ```
+4. Click **Save**
+
+### 10.4 Access Frontend
+
+1. Open `https://ca-frontend.<random>.eastus2.azurecontainerapps.io`
+2. Click **Sign in with Microsoft**
+3. Authenticate with your organization account
+4. Explore the DOT Transportation Data Portal
 
 ---
 
@@ -464,7 +585,7 @@ http://dot-demo-frontend.<region>.azurecontainer.io
 To delete all resources:
 
 1. Navigate to **Resource groups**
-2. Select `rg-dot-demo`
+2. Select `rg-dab-demo`
 3. Click **Delete resource group**
 4. Type the resource group name to confirm
 5. Click **Delete**
@@ -479,11 +600,21 @@ To delete app registrations:
 
 ## Troubleshooting
 
-### Container Won't Start
+> **Need more help?** See the [Complete Troubleshooting Guide](./troubleshooting-guide.md) for 100+ solutions.
 
-1. Go to **Container Instances** → Your container
-2. Check **Containers** → **Events** for error messages
-3. Check **Containers** → **Logs** for application errors
+### Container App Won't Start
+
+1. Go to **Container Apps** → Your container app
+2. Check **Revisions and replicas** for failed revisions
+3. Check **Log stream** for application errors
+
+![Revision Health](https://learn.microsoft.com/en-us/azure/container-apps/media/revisions/revision-details.png)
+
+### Scale-to-Zero Cold Starts
+
+With `minReplicas=0`, the first request after idle will experience a cold start (~2-5 seconds).
+
+**Solution:** Set `minReplicas=1` for production workloads.
 
 ### SQL Connection Failed
 
@@ -501,7 +632,6 @@ To delete app registrations:
 
 ## Next Steps
 
-- [Configure Custom Domain](./custom-domain.md)
-- [Enable HTTPS with SSL](./ssl-setup.md)
-- [Set Up Monitoring](./monitoring.md)
-- [Security Hardening](./security-guide.md)
+- [Auto-Scaling Guide](./auto-scaling-guide.md) - Configure scaling rules
+- [CI/CD Guide](./ci-cd-guide.md) - Set up GitHub Actions
+- [Container Apps Portal Guide](./container-apps-portal-guide.md) - Detailed portal walkthrough

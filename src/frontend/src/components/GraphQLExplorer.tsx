@@ -3,39 +3,50 @@
  * Interactive GraphQL query interface for demonstrating DAB GraphQL capabilities
  */
 
-import React, { useState } from 'react';
-import { useMsal } from '@azure/msal-react';
-import { loginRequest } from '../config/authConfig';
+import { useState } from 'react';
+import { useApiToken } from '../hooks/useApiToken';
+
+// Derive GraphQL URL from API base URL
+// API is at /api, GraphQL is at /graphql on the same host
+function getGraphQLUrl(): string {
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+  // If API URL is relative, just use /graphql
+  if (apiUrl.startsWith('/')) {
+    return '/graphql';
+  }
+  // If API URL is absolute, replace /api with /graphql
+  return apiUrl.replace(/\/api\/?$/, '/graphql');
+}
 
 const SAMPLE_QUERIES = {
   categories: `# Get all categories with record counts
 {
   categories {
     items {
-      id
-      name
-      description
-      icon
-      color
+      Id
+      Name
+      Description
+      Icon
+      Color
     }
   }
 }`,
   bridges: `# Get bridges in poor condition
 {
   bridges(
-    filter: { overallCondition: { eq: "Poor" } }
+    filter: { OverallCondition: { eq: "Poor" } }
     first: 10
-    orderBy: { yearBuilt: ASC }
+    orderBy: { YearBuilt: ASC }
   ) {
     items {
-      id
-      structureNumber
-      yearBuilt
-      overallCondition
-      averageDailyTraffic
+      Id
+      StructureNumber
+      YearBuilt
+      OverallCondition
+      AverageDailyTraffic
       state {
-        name
-        code
+        Name
+        Code
       }
     }
   }
@@ -43,19 +54,19 @@ const SAMPLE_QUERIES = {
   railroadAccidents: `# Get recent railroad accidents with fatalities
 {
   railroadAccidents(
-    filter: { totalKilled: { gt: 0 } }
+    filter: { TotalKilled: { gt: 0 } }
     first: 10
-    orderBy: { accidentDate: DESC }
+    orderBy: { AccidentDate: DESC }
   ) {
     items {
-      id
-      reportingRailroadName
-      accidentDate
-      accidentType
-      totalKilled
-      totalInjured
+      Id
+      ReportingRailroadName
+      AccidentDate
+      AccidentType
+      TotalKilled
+      TotalInjured
       state {
-        name
+        Name
       }
     }
   }
@@ -64,17 +75,17 @@ const SAMPLE_QUERIES = {
 {
   transitAgencies(
     first: 10
-    orderBy: { unlinkedPassengerTrips: DESC }
+    orderBy: { UnlinkedPassengerTrips: DESC }
   ) {
     items {
-      ntdId
-      agencyName
-      city
-      unlinkedPassengerTrips
-      totalOperatingExpenses
+      NtdId
+      AgencyName
+      City
+      UnlinkedPassengerTrips
+      TotalOperatingExpenses
       state {
-        name
-        code
+        Name
+        Code
       }
     }
   }
@@ -82,18 +93,18 @@ const SAMPLE_QUERIES = {
   vehicleFatalities: `# Get vehicle fatalities with filters
 {
   vehicleFatalities(
-    filter: { involvesSpeedRelated: { eq: true } }
+    filter: { InvolvesSpeedRelated: { eq: true } }
     first: 10
-    orderBy: { crashDate: DESC }
+    orderBy: { CrashDate: DESC }
   ) {
     items {
-      caseNumber
-      crashDate
-      numberOfFatalities
-      mannerOfCollision
-      landUse
+      CaseNumber
+      CrashDate
+      NumberOfFatalities
+      MannerOfCollision
+      LandUse
       state {
-        name
+        Name
       }
     }
   }
@@ -102,18 +113,18 @@ const SAMPLE_QUERIES = {
 {
   states(first: 10) {
     items {
-      id
-      code
-      name
-      region
+      Id
+      Code
+      Name
+      Region
       bridges {
         items {
-          id
+          Id
         }
       }
       railroadAccidents {
         items {
-          id
+          Id
         }
       }
     }
@@ -126,7 +137,7 @@ interface GraphQLExplorerProps {
 }
 
 export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
-  const { instance, accounts } = useMsal();
+  const getToken = useApiToken();
   const [query, setQuery] = useState(SAMPLE_QUERIES.categories);
   const [result, setResult] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,17 +149,13 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
     setError(null);
 
     try {
-      const response = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
-
-      const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || '/graphql';
+      const accessToken = await getToken();
+      const graphqlUrl = getGraphQLUrl();
 
       const res = await fetch(graphqlUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${response.accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ query }),
@@ -175,8 +182,8 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-800 to-purple-600 rounded-t-xl">
           <div className="flex items-center gap-3">
@@ -218,15 +225,15 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
         </div>
 
         {/* Main content */}
-        <div className="flex-1 grid grid-cols-2 gap-4 p-6 min-h-0">
+        <div className="flex-1 grid grid-cols-2 gap-6 p-6 min-h-0 overflow-hidden">
           {/* Query editor */}
-          <div className="flex flex-col">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-slate-700">Query</label>
+          <div className="flex flex-col min-h-0">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-base font-medium text-slate-700">Query</label>
               <button
                 onClick={handleExecute}
                 disabled={isLoading}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors font-medium"
               >
                 {isLoading ? (
                   <>
@@ -235,7 +242,7 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -247,22 +254,22 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 p-4 font-mono text-sm bg-slate-900 text-green-400 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="flex-1 p-4 font-mono text-base bg-slate-900 text-green-400 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 leading-relaxed"
               placeholder="Enter your GraphQL query..."
             />
           </div>
 
           {/* Result viewer */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium text-slate-700 mb-2">Result</label>
-            <div className="flex-1 relative">
+          <div className="flex flex-col min-h-0">
+            <label className="text-base font-medium text-slate-700 mb-3">Result</label>
+            <div className="flex-1 relative min-h-0">
               {error && (
-                <div className="absolute top-0 left-0 right-0 bg-red-50 border border-red-200 rounded-t-lg p-3 text-red-700 text-sm">
+                <div className="absolute top-0 left-0 right-0 bg-red-50 border border-red-200 rounded-t-lg p-3 text-red-700 text-sm z-10">
                   <strong>Error:</strong> {error}
                 </div>
               )}
               <pre
-                className={`h-full p-4 font-mono text-sm bg-slate-100 rounded-lg overflow-auto ${
+                className={`h-full p-4 font-mono text-base bg-slate-100 rounded-lg overflow-auto leading-relaxed ${
                   error ? 'pt-16' : ''
                 }`}
               >
@@ -282,7 +289,7 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
             <div className="text-slate-600">
               <span className="font-medium">Endpoint:</span>{' '}
               <code className="px-2 py-1 bg-slate-200 rounded">
-                {import.meta.env.VITE_GRAPHQL_URL || '/graphql'}
+                {getGraphQLUrl()}
               </code>
             </div>
             <div className="text-slate-500">

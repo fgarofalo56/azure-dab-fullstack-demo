@@ -1,6 +1,18 @@
 # Data API Builder Configuration Guide
 
+<div align="center">
+
+![Data API Builder](https://img.shields.io/badge/Data%20API-Builder-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
+![REST API](https://img.shields.io/badge/REST-API-009688?style=for-the-badge&logo=postman&logoColor=white)
+![GraphQL](https://img.shields.io/badge/GraphQL-API-E10098?style=for-the-badge&logo=graphql&logoColor=white)
+
+**Zero-code REST & GraphQL APIs from your database**
+
+</div>
+
 This comprehensive guide explains how to configure Azure Data API Builder (DAB) for this project and how to extend it with additional entities, relationships, and features.
+
+> **What is DAB?** Azure Data API Builder automatically generates secure REST and GraphQL APIs directly from your database schema - no code required.
 
 ---
 

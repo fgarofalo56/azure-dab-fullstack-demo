@@ -48,6 +48,12 @@ tmp/
 *.temp
 tmpclaude-*
 
+# Playwright MCP
+.playwright-mcp/
+
+# Deployment outputs (may contain sensitive info)
+deployment-outputs.json
+
 # Azure
 .azure/
 
