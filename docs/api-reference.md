@@ -1,49 +1,59 @@
-# API Reference
+# 📋 API Reference
 
 <div align="center">
 
-![API](https://img.shields.io/badge/API-REST-10B981?style=for-the-badge)
+![REST API](https://img.shields.io/badge/REST-API-10B981?style=for-the-badge&logo=fastapi&logoColor=white)
 ![GraphQL](https://img.shields.io/badge/GraphQL-E10098?style=for-the-badge&logo=graphql&logoColor=white)
-![Azure](https://img.shields.io/badge/DAB-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![DAB](https://img.shields.io/badge/Data%20API%20Builder-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
 
-**Complete API documentation for the DOT Transportation Data Portal**
+### 📚 Complete API documentation for the DOT Transportation Data Portal
+
+[🔐 Authentication](#-authentication) • [🌐 REST API](#-rest-api) • [💎 GraphQL](#-graphql-api) • [❌ Errors](#-error-codes)
+
+---
+
+[![OData](https://img.shields.io/badge/📊_OData-Query_Support-00C853?style=flat-square)]()
+[![Documentation](https://img.shields.io/badge/📚_DAB_Docs-0078D4?style=flat-square)](https://learn.microsoft.com/en-us/azure/data-api-builder/)
+[![Interactive](https://img.shields.io/badge/🧪_GraphQL-Playground-E10098?style=flat-square)]()
 
 </div>
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
-1. [Overview](#overview)
-2. [Authentication](#authentication)
-3. [Base URLs](#base-urls)
-4. [REST API](#rest-api)
-   - [Query Parameters](#query-parameters)
-   - [Endpoints](#endpoints)
-5. [GraphQL API](#graphql-api)
-6. [Error Codes](#error-codes)
-7. [Rate Limiting](#rate-limiting)
+| # | 📍 Section | 📝 Description |
+|:-:|:----------|:--------------|
+| 1 | [📖 Overview](#-overview) | API capabilities |
+| 2 | [🔐 Authentication](#-authentication) | Azure AD tokens |
+| 3 | [🔗 Base URLs](#-base-urls) | Endpoint URLs |
+| 4 | [🌐 REST API](#-rest-api) | OData query parameters |
+| 5 | [💎 GraphQL API](#-graphql-api) | GraphQL queries/mutations |
+| 6 | [❌ Error Codes](#-error-codes) | HTTP status codes |
+| 7 | [⏱️ Rate Limiting](#-rate-limiting) | Request limits |
 
 ---
 
-## Overview
+## 📖 Overview
 
 This API provides access to DOT transportation data through Azure Data API Builder (DAB). Both REST and GraphQL interfaces are available.
 
-### Key Features
+### ✨ Key Features
 
-- **RESTful API** with OData-style query parameters
-- **GraphQL API** for flexible data queries
-- **Azure AD authentication** for secure access
-- **Real-time data** from Azure SQL Database
+| ✨ Feature | 📝 Description |
+|:----------|:--------------|
+| 🌐 **RESTful API** | OData-style query parameters |
+| 💎 **GraphQL API** | Flexible data queries |
+| 🔐 **Azure AD auth** | Secure access |
+| ⚡ **Real-time data** | From Azure SQL Database |
 
 ---
 
-## Authentication
+## 🔐 Authentication
 
-All API requests require a valid Azure AD Bearer token.
+> 🔒 All API requests require a valid Azure AD Bearer token.
 
-### Obtaining a Token
+### 🔑 Obtaining a Token
 
 ```javascript
 import { PublicClientApplication } from '@azure/msal-browser';
@@ -58,7 +68,7 @@ const msalConfig = {
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
-// Request token
+// 🔐 Request token
 const tokenResponse = await msalInstance.acquireTokenSilent({
   scopes: ['api://YOUR_DAB_CLIENT_ID/.default'],
   account: msalInstance.getAllAccounts()[0],
@@ -67,7 +77,7 @@ const tokenResponse = await msalInstance.acquireTokenSilent({
 const accessToken = tokenResponse.accessToken;
 ```
 
-### Using the Token
+### 📤 Using the Token
 
 Include the token in the `Authorization` header:
 
@@ -80,35 +90,35 @@ Content-Type: application/json
 
 ---
 
-## Base URLs
+## 🔗 Base URLs
 
-| Environment | REST API | GraphQL |
-|-------------|----------|---------|
-| Production | `https://your-app.azurefd.net/api` | `https://your-app.azurefd.net/graphql` |
-| Development | `http://localhost:5000/api` | `http://localhost:5000/graphql` |
+| 🌍 Environment | 🌐 REST API | 💎 GraphQL |
+|:--------------|:-----------|:----------|
+| 🏭 Production | `https://your-app.azurefd.net/api` | `https://your-app.azurefd.net/graphql` |
+| 🧪 Development | `http://localhost:5000/api` | `http://localhost:5000/graphql` |
 
 ---
 
-## REST API
+## 🌐 REST API
 
-### Query Parameters
+### 📊 Query Parameters
 
 DAB supports the following OData-style query parameters:
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `$first` | Limit number of results (replaces `$top`) | `$first=10` |
-| `$after` | Cursor for pagination (base64 encoded) | `$after=eyJJZCI6MTB9` |
+| 📋 Parameter | 📝 Description | 💡 Example |
+|:------------|:--------------|:----------|
+| `$first` | Limit number of results | `$first=10` |
+| `$after` | Cursor for pagination (base64) | `$after=eyJJZCI6MTB9` |
 | `$filter` | Filter expression | `$filter=StateId eq 48` |
 | `$orderby` | Sort order | `$orderby=AccidentDate desc` |
 | `$select` | Select specific fields | `$select=Id,Name` |
 
-> **Note:** DAB uses `$first` instead of `$top` and cursor-based pagination with `$after` instead of `$skip`.
+> 📝 **Note:** DAB uses `$first` instead of `$top` and cursor-based pagination with `$after` instead of `$skip`.
 
-### Filter Operations
+### 🔍 Filter Operations
 
-| Operator | Description | Example |
-|----------|-------------|---------|
+| 🔧 Operator | 📝 Description | 💡 Example |
+|:-----------|:--------------|:----------|
 | `eq` | Equal | `$filter=StateId eq 48` |
 | `ne` | Not equal | `$filter=Status ne 'Closed'` |
 | `gt` | Greater than | `$filter=TotalKilled gt 0` |
@@ -122,9 +132,9 @@ DAB supports the following OData-style query parameters:
 
 ---
 
-### Endpoints
+### 📦 Endpoints
 
-#### Categories
+#### 📂 Categories
 
 Get all transportation data categories.
 
@@ -132,7 +142,7 @@ Get all transportation data categories.
 GET /api/Category
 ```
 
-**Response:**
+**📤 Response:**
 ```json
 {
   "value": [
@@ -151,7 +161,7 @@ GET /api/Category
 
 ---
 
-#### Category Summaries
+#### 📊 Category Summaries
 
 Get categories with record counts (view).
 
@@ -159,7 +169,7 @@ Get categories with record counts (view).
 GET /api/CategorySummary
 ```
 
-**Response:**
+**📤 Response:**
 ```json
 {
   "value": [
@@ -177,7 +187,7 @@ GET /api/CategorySummary
 
 ---
 
-#### States
+#### 🗺️ States
 
 Get US states and territories.
 
@@ -185,7 +195,7 @@ Get US states and territories.
 GET /api/State
 ```
 
-**Response:**
+**📤 Response:**
 ```json
 {
   "value": [
@@ -201,21 +211,31 @@ GET /api/State
 
 ---
 
-#### Railroad Accidents
+#### 🚂 Railroad Accidents
 
 FRA Form 54 railroad accident data.
 
-**GET all:**
+<details>
+<summary>📥 <b>GET all</b></summary>
+
 ```http
 GET /api/RailroadAccident?$first=10&$orderby=AccidentDate desc
 ```
 
-**GET by ID:**
+</details>
+
+<details>
+<summary>🔍 <b>GET by ID</b></summary>
+
 ```http
 GET /api/RailroadAccident/Id/1
 ```
 
-**CREATE:**
+</details>
+
+<details>
+<summary>➕ <b>CREATE</b></summary>
+
 ```http
 POST /api/RailroadAccident
 Content-Type: application/json
@@ -233,7 +253,11 @@ Content-Type: application/json
 }
 ```
 
-**UPDATE:**
+</details>
+
+<details>
+<summary>✏️ <b>UPDATE</b></summary>
+
 ```http
 PATCH /api/RailroadAccident/Id/1
 Content-Type: application/json
@@ -243,15 +267,21 @@ Content-Type: application/json
 }
 ```
 
-**DELETE:**
+</details>
+
+<details>
+<summary>🗑️ <b>DELETE</b></summary>
+
 ```http
 DELETE /api/RailroadAccident/Id/1
 ```
 
-**Fields:**
+</details>
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
+**📋 Fields:**
+
+| 📋 Field | 🔧 Type | ✅ Required | 📝 Description |
+|:---------|:-------|:----------|:--------------|
 | Id | int | Auto | Primary key |
 | CategoryId | int | Yes | FK to Category |
 | ReportingRailroadCode | string | No | Railroad reporting code |
@@ -269,19 +299,19 @@ DELETE /api/RailroadAccident/Id/1
 
 ---
 
-#### Bridges
+#### 🌉 Bridges
 
 National Bridge Inventory data.
 
-**GET with filter:**
+**🔍 GET with filter:**
 ```http
 GET /api/Bridge?$filter=OverallCondition eq 'Poor'&$first=10
 ```
 
-**Fields:**
+**📋 Fields:**
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| 📋 Field | 🔧 Type | ✅ Required | 📝 Description |
+|:---------|:-------|:----------|:--------------|
 | Id | int | Auto | Primary key |
 | CategoryId | int | Yes | FK to Category |
 | StructureNumber | string | Yes | NBI structure number |
@@ -300,19 +330,19 @@ GET /api/Bridge?$filter=OverallCondition eq 'Poor'&$first=10
 
 ---
 
-#### Transit Agencies
+#### 🚌 Transit Agencies
 
 National Transit Database agency metrics.
 
-**GET top agencies by ridership:**
+**📊 GET top agencies by ridership:**
 ```http
 GET /api/TransitAgency?$orderby=UnlinkedPassengerTrips desc&$first=10
 ```
 
-**Fields:**
+**📋 Fields:**
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| 📋 Field | 🔧 Type | ✅ Required | 📝 Description |
+|:---------|:-------|:----------|:--------------|
 | Id | int | Auto | Primary key |
 | CategoryId | int | Yes | FK to Category |
 | NtdId | string | Yes | NTD identifier |
@@ -328,19 +358,19 @@ GET /api/TransitAgency?$orderby=UnlinkedPassengerTrips desc&$first=10
 
 ---
 
-#### Vehicle Fatalities
+#### 🚗 Vehicle Fatalities
 
 FARS vehicle crash fatality data.
 
-**GET speed-related fatalities:**
+**🔍 GET speed-related fatalities:**
 ```http
 GET /api/VehicleFatality?$filter=InvolvesSpeedRelated eq true&$first=10
 ```
 
-**Fields:**
+**📋 Fields:**
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
+| 📋 Field | 🔧 Type | ✅ Required | 📝 Description |
+|:---------|:-------|:----------|:--------------|
 | Id | int | Auto | Primary key |
 | CategoryId | int | Yes | FK to Category |
 | CaseNumber | string | Yes | FARS case number |
@@ -357,24 +387,26 @@ GET /api/VehicleFatality?$filter=InvolvesSpeedRelated eq true&$first=10
 
 ---
 
-## GraphQL API
+## 💎 GraphQL API
 
-### Endpoint
+### 🔌 Endpoint
 
 ```
 POST /graphql
 ```
 
-### Headers
+### 📤 Headers
 
 ```http
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
-### Query Examples
+### 📊 Query Examples
 
-**Get categories:**
+<details>
+<summary>📂 <b>Get categories</b></summary>
+
 ```graphql
 {
   categories {
@@ -387,7 +419,11 @@ Content-Type: application/json
 }
 ```
 
-**Get bridges with state relation:**
+</details>
+
+<details>
+<summary>🌉 <b>Get bridges with state relation</b></summary>
+
 ```graphql
 {
   bridges(
@@ -409,7 +445,11 @@ Content-Type: application/json
 }
 ```
 
-**Get railroad accidents with fatalities:**
+</details>
+
+<details>
+<summary>🚂 <b>Get railroad accidents with fatalities</b></summary>
+
 ```graphql
 {
   railroadAccidents(
@@ -432,9 +472,13 @@ Content-Type: application/json
 }
 ```
 
-### Mutations
+</details>
 
-**Create record:**
+### ✏️ Mutations
+
+<details>
+<summary>➕ <b>Create record</b></summary>
+
 ```graphql
 mutation {
   createRailroadAccident(item: {
@@ -450,7 +494,11 @@ mutation {
 }
 ```
 
-**Update record:**
+</details>
+
+<details>
+<summary>✏️ <b>Update record</b></summary>
+
 ```graphql
 mutation {
   updateRailroadAccident(
@@ -463,7 +511,11 @@ mutation {
 }
 ```
 
-**Delete record:**
+</details>
+
+<details>
+<summary>🗑️ <b>Delete record</b></summary>
+
 ```graphql
 mutation {
   deleteRailroadAccident(Id: 1) {
@@ -472,12 +524,14 @@ mutation {
 }
 ```
 
+</details>
+
 ---
 
-## Error Codes
+## ❌ Error Codes
 
-| HTTP Status | Code | Description |
-|-------------|------|-------------|
+| 🔢 HTTP Status | 🏷️ Code | 📝 Description |
+|:--------------|:-------|:--------------|
 | 400 | Bad Request | Invalid request syntax or parameters |
 | 401 | Unauthorized | Missing or invalid authentication token |
 | 403 | Forbidden | Token valid but lacks required permissions |
@@ -488,7 +542,7 @@ mutation {
 | 500 | Internal Server Error | Server-side error |
 | 503 | Service Unavailable | Database or service temporarily unavailable |
 
-### Error Response Format
+### 📤 Error Response Format
 
 ```json
 {
@@ -507,12 +561,12 @@ mutation {
 
 ---
 
-## Rate Limiting
+## ⏱️ Rate Limiting
 
-| Tier | Requests/Minute | Burst |
-|------|-----------------|-------|
-| Development | 60 | 10 |
-| Production | 1000 | 100 |
+| 🏷️ Tier | 📊 Requests/Minute | ⚡ Burst |
+|:--------|:------------------|:--------|
+| 🧪 Development | 60 | 10 |
+| 🏭 Production | 1000 | 100 |
 
 When rate limited, you'll receive:
 
@@ -521,28 +575,38 @@ HTTP/1.1 429 Too Many Requests
 Retry-After: 60
 ```
 
-### Best Practices
+### 💡 Best Practices
 
-1. **Implement exponential backoff** for retries
-2. **Cache responses** where appropriate
-3. **Use pagination** instead of fetching all records
-4. **Select only needed fields** with `$select`
+| # | 💡 Practice | 📝 Description |
+|:-:|:-----------|:--------------|
+| 1 | 🔄 **Exponential backoff** | Implement for retries |
+| 2 | 💾 **Cache responses** | Where appropriate |
+| 3 | 📄 **Use pagination** | Instead of fetching all records |
+| 4 | 📋 **Select needed fields** | With `$select` |
 
 ---
 
-## Additional Resources
+## 📚 Additional Resources
 
-- [Azure Data API Builder Documentation](https://learn.microsoft.com/en-us/azure/data-api-builder/)
-- [OData Query Options](https://learn.microsoft.com/en-us/odata/concepts/queryoptions-overview)
-- [GraphQL Specification](https://spec.graphql.org/)
-- [MSAL.js Documentation](https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-overview)
+| 📘 Resource | 🔗 Link |
+|:-----------|:--------|
+| 📖 Azure Data API Builder | [Microsoft Learn](https://learn.microsoft.com/en-us/azure/data-api-builder/) |
+| 📊 OData Query Options | [Microsoft Learn](https://learn.microsoft.com/en-us/odata/concepts/queryoptions-overview) |
+| 💎 GraphQL Specification | [GraphQL.org](https://spec.graphql.org/) |
+| 🔐 MSAL.js Documentation | [Microsoft Learn](https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-overview) |
 
 ---
 
 <div align="center">
 
-**Need help?**
+### 🆘 Need help?
 
-[Troubleshooting Guide](./troubleshooting-guide.md) | [Setup Guide](./setup-guide.md) | [Back to Index](./index.md)
+[![Troubleshooting Guide](https://img.shields.io/badge/🔧_Troubleshooting-FF6B6B?style=for-the-badge)](./troubleshooting-guide.md)
+[![Setup Guide](https://img.shields.io/badge/🚀_Setup_Guide-0078D4?style=for-the-badge)](./setup-guide.md)
+[![Back to Index](https://img.shields.io/badge/📚_Back_to_Index-gray?style=for-the-badge)](./index.md)
+
+---
+
+**Made with ❤️ for the Azure community**
 
 </div>

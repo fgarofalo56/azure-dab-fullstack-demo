@@ -1,69 +1,78 @@
-# CI/CD Guide
+# ⚙️ CI/CD Guide
 
 <div align="center">
 
-![GitHub Actions](https://img.shields.io/badge/GitHub-Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
 ![Azure](https://img.shields.io/badge/Azure-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![OIDC](https://img.shields.io/badge/OIDC-Secure-00C853?style=for-the-badge&logo=openid&logoColor=white)
 
-**Automated CI/CD Pipeline with GitHub Actions**
+### 🚀 Automated CI/CD Pipeline with GitHub Actions
+
+[📖 Overview](#-overview) • [🔐 Secrets](#-setting-up-github-secrets) • [🔑 OIDC](#-oidc-authentication-setup) • [🚀 Triggers](#-triggering-deployments)
+
+---
+
+[![Estimated Time](https://img.shields.io/badge/⏱️_Setup_Time-30_minutes-blue?style=flat-square)]()
+[![Difficulty](https://img.shields.io/badge/📊_Level-Advanced-red?style=flat-square)]()
+[![Security](https://img.shields.io/badge/🔒_OIDC-Passwordless-00C853?style=flat-square)]()
 
 </div>
 
-This guide explains how to set up and use the GitHub Actions workflow for automated deployment of the DOT Transportation Data Portal.
+---
 
-> **Estimated Setup Time:** 30 minutes
-> **Prerequisites:** GitHub repository, Azure subscription, completed infrastructure deployment
+## 📑 Table of Contents
+
+| # | 📍 Section | 📝 Description |
+|:-:|:----------|:--------------|
+| 1 | [📖 Overview](#-overview) | Pipeline architecture |
+| 2 | [🔄 Workflow Structure](#-workflow-structure) | Jobs and triggers |
+| 3 | [🔐 GitHub Secrets](#-setting-up-github-secrets) | Required secrets |
+| 4 | [🔑 OIDC Setup](#-oidc-authentication-setup) | Passwordless auth |
+| 5 | [🚀 Triggering](#-triggering-deployments) | Deploy methods |
+| 6 | [📊 Monitoring](#-monitoring-deployments) | Track deployments |
+| 7 | [🔧 Troubleshooting](#-troubleshooting) | Common issues |
+| 8 | [✨ Best Practices](#-best-practices) | Production tips |
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Workflow Structure](#workflow-structure)
-- [Setting Up GitHub Secrets](#setting-up-github-secrets)
-- [OIDC Authentication Setup](#oidc-authentication-setup)
-- [Triggering Deployments](#triggering-deployments)
-- [Monitoring Deployments](#monitoring-deployments)
-- [Troubleshooting](#troubleshooting)
-
----
-
-## Overview
+## 📖 Overview
 
 The GitHub Actions workflow automates:
 
-1. **Building and testing** the React frontend
-2. **Validating** Bicep infrastructure templates
-3. **Building and pushing** container images to ACR
-4. **Deploying** to Azure Container Apps
-5. **Verifying** deployment health
+| # | 🔄 Step | 📝 Description |
+|:-:|:--------|:--------------|
+| 1 | 🧪 **Build & Test** | Build React frontend, run tests |
+| 2 | ✅ **Validate** | Validate Bicep infrastructure templates |
+| 3 | 📦 **Build Images** | Build and push container images to ACR |
+| 4 | 🚀 **Deploy** | Deploy to Azure Container Apps |
+| 5 | ✔️ **Verify** | Verify deployment health |
 
-### Workflow Triggers
+### 🎯 Workflow Triggers
 
-| Trigger | Behavior |
-|---------|----------|
-| Push to `main` | Full build and deploy |
-| Pull request to `main` | Build, test, and validate (no deploy) |
-| Manual dispatch | On-demand deployment with environment selection |
+| 🎯 Trigger | 📝 Behavior |
+|:----------|:-----------|
+| 📤 Push to `main` | Full build and deploy |
+| 🔀 Pull request to `main` | Build, test, and validate (no deploy) |
+| 🖱️ Manual dispatch | On-demand deployment with environment selection |
 
 ---
 
-## Workflow Structure
+## 🔄 Workflow Structure
 
 ```mermaid
 flowchart LR
-    subgraph Triggers["Triggers"]
-        Push["Push to main"]
-        PR["Pull Request"]
-        Manual["Manual Dispatch"]
+    subgraph Triggers["🎯 Triggers"]
+        Push["📤 Push to main"]
+        PR["🔀 Pull Request"]
+        Manual["🖱️ Manual Dispatch"]
     end
 
-    subgraph Jobs["Jobs"]
-        Build["build-and-test<br/>Node.js, lint, test"]
-        Validate["validate-bicep<br/>Template validation"]
-        Push2["build-push-images<br/>Docker build, ACR push"]
-        Deploy["deploy<br/>Container Apps update"]
+    subgraph Jobs["⚙️ Jobs"]
+        Build["🧪 build-and-test<br/>Node.js, lint, test"]
+        Validate["✅ validate-bicep<br/>Template validation"]
+        Push2["📦 build-push-images<br/>Docker build, ACR push"]
+        Deploy["🚀 deploy<br/>Container Apps update"]
     end
 
     Push --> Build
@@ -78,10 +87,10 @@ flowchart LR
     Push2 --> Deploy
 ```
 
-### Jobs
+### 📋 Jobs
 
-| Job | Runs On | Purpose |
-|-----|---------|---------|
+| ⚙️ Job | 🎯 Runs On | 📝 Purpose |
+|:------|:----------|:----------|
 | `build-and-test` | All triggers | Build frontend, run tests |
 | `validate-bicep` | All triggers | Validate infrastructure |
 | `build-push-images` | Push to main only | Build and push Docker images |
@@ -89,14 +98,14 @@ flowchart LR
 
 ---
 
-## Setting Up GitHub Secrets
+## 🔐 Setting Up GitHub Secrets
 
 Navigate to your repository **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
 
-### Required Secrets
+### 🔑 Required Secrets
 
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
+| 🔐 Secret Name | 📝 Description | 💡 Example |
+|:--------------|:--------------|:----------|
 | `AZURE_CLIENT_ID` | Service principal or managed identity client ID | `12345678-1234-...` |
 | `AZURE_TENANT_ID` | Azure AD tenant ID | `87654321-4321-...` |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID | `abcdefgh-abcd-...` |
@@ -109,40 +118,40 @@ Navigate to your repository **Settings** → **Secrets and variables** → **Act
 | `SQL_ADMIN_PASSWORD` | SQL Server admin password | `SecureP@ssword!` |
 | `LOG_ANALYTICS_WORKSPACE_ID` | Full resource ID of Log Analytics workspace | `/subscriptions/.../workspaces/...` |
 
-### Optional Secrets
+### 🔧 Optional Secrets
 
-| Secret Name | Description | Default |
-|-------------|-------------|---------|
+| 🔐 Secret Name | 📝 Description | 💡 Default |
+|:--------------|:--------------|:----------|
 | `AZURE_CREDENTIALS` | Full service principal JSON (legacy) | Use OIDC instead |
 
 ---
 
-## OIDC Authentication Setup
+## 🔑 OIDC Authentication Setup
 
-GitHub Actions supports OIDC (OpenID Connect) for passwordless authentication to Azure. This is more secure than storing credentials.
+> 🔒 GitHub Actions supports **OIDC** (OpenID Connect) for passwordless authentication to Azure. This is more secure than storing credentials.
 
-### Step 1: Create App Registration
+### 1️⃣ Create App Registration
 
 ```bash
-# Create app registration for GitHub Actions
+# ➕ Create app registration for GitHub Actions
 az ad app create --display-name "GitHub-Actions-OIDC"
 
-# Get the app ID
+# 🔍 Get the app ID
 $appId = az ad app list --display-name "GitHub-Actions-OIDC" --query "[0].appId" -o tsv
 
-# Create service principal
+# ➕ Create service principal
 az ad sp create --id $appId
 ```
 
-### Step 2: Configure Federated Credentials
+### 2️⃣ Configure Federated Credentials
 
 1. Go to **Azure Portal** → **Microsoft Entra ID** → **App registrations**
 2. Select **GitHub-Actions-OIDC**
 3. Go to **Certificates & secrets** → **Federated credentials**
 4. Click **+ Add credential**
 
-| Field | Value |
-|-------|-------|
+| 📋 Field | 💡 Value |
+|:---------|:--------|
 | Federated credential scenario | **GitHub Actions deploying Azure resources** |
 | Organization | Your GitHub organization/username |
 | Repository | `azure-dab-fullstack-demo` |
@@ -152,38 +161,40 @@ az ad sp create --id $appId
 
 5. Click **Add**
 
-### Step 3: Assign Azure Roles
+### 3️⃣ Assign Azure Roles
 
 ```bash
-# Get the service principal object ID
+# 🔍 Get the service principal object ID
 $spId = az ad sp list --display-name "GitHub-Actions-OIDC" --query "[0].id" -o tsv
 
-# Assign Contributor role on resource group
+# 🔐 Assign Contributor role on resource group
 az role assignment create \
   --assignee $spId \
   --role "Contributor" \
   --scope "/subscriptions/<subscription-id>/resourceGroups/rg-dab-demo"
 
-# Assign AcrPush role on ACR
+# 📦 Assign AcrPush role on ACR
 az role assignment create \
   --assignee $spId \
   --role "AcrPush" \
   --scope "/subscriptions/<subscription-id>/resourceGroups/rg-dab-demo/providers/Microsoft.ContainerRegistry/registries/acrdabdemodev"
 ```
 
-### Step 4: Configure GitHub Secrets
+### 4️⃣ Configure GitHub Secrets
 
 Set these secrets in your repository:
 
-- `AZURE_CLIENT_ID`: The app registration client ID
-- `AZURE_TENANT_ID`: Your Azure AD tenant ID
-- `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
+| 🔐 Secret | 📝 Value |
+|:---------|:--------|
+| `AZURE_CLIENT_ID` | The app registration client ID |
+| `AZURE_TENANT_ID` | Your Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
 
 ---
 
-## Triggering Deployments
+## 🚀 Triggering Deployments
 
-### Automatic (Push to Main)
+### 📤 Automatic (Push to Main)
 
 Any push to the `main` branch triggers a full deployment:
 
@@ -196,58 +207,60 @@ git commit -m "feat: update feature X"
 git push origin main
 ```
 
-### Manual Dispatch
+### 🖱️ Manual Dispatch
 
 1. Go to **Actions** tab in GitHub
 2. Select **Build and Deploy to Azure Container Apps**
 3. Click **Run workflow**
 4. Select options:
-   - **Branch:** `main`
-   - **Environment:** `dev`, `staging`, or `prod`
-   - **Skip infrastructure:** Check to skip Bicep deployment
+   | 📋 Option | 💡 Value |
+   |:---------|:--------|
+   | **Branch** | `main` |
+   | **Environment** | `dev`, `staging`, or `prod` |
+   | **Skip infrastructure** | Check to skip Bicep deployment |
 
-### Pull Request (Validation Only)
+### 🔀 Pull Request (Validation Only)
 
 Pull requests trigger:
-- Frontend build and tests
-- Bicep template validation
-- What-if analysis (preview changes)
+- ✅ Frontend build and tests
+- ✅ Bicep template validation
+- ✅ What-if analysis (preview changes)
 
-No actual deployment occurs on PRs.
+> ⚠️ **No actual deployment occurs on PRs.**
 
 ---
 
-## Monitoring Deployments
+## 📊 Monitoring Deployments
 
-### GitHub Actions UI
+### 🖥️ GitHub Actions UI
 
 1. Go to **Actions** tab
 2. Click on the running/completed workflow
 3. View logs for each job
 
-### Workflow Run Summary
+### 📋 Workflow Run Summary
 
 After deployment, the workflow outputs:
-- Container Apps URLs
-- Image tag deployed
-- Health check results
+- 🔗 Container Apps URLs
+- 🏷️ Image tag deployed
+- ✅ Health check results
 
-### Azure Portal
+### 🌐 Azure Portal
 
 1. Go to **Container Apps** → Your app
 2. Check **Revisions and replicas** for deployment status
 3. View **Log stream** for application logs
 
-### CLI Monitoring
+### ⌨️ CLI Monitoring
 
 ```bash
-# Watch deployment status
+# 📋 Watch deployment status
 az containerapp revision list \
   --name dabdemo-dev-ca-dab \
   --resource-group rg-dab-demo \
   -o table
 
-# View recent logs
+# 📊 View recent logs
 az containerapp logs show \
   --name dabdemo-dev-ca-dab \
   --resource-group rg-dab-demo \
@@ -256,13 +269,14 @@ az containerapp logs show \
 
 ---
 
-## Workflow File Reference
+## 📜 Workflow File Reference
 
 The workflow file is located at `.github/workflows/deploy.yml`.
 
-### Key Sections
+### 🔧 Key Sections
 
-#### Environment Variables
+<details>
+<summary>🌍 <b>Environment Variables</b></summary>
 
 ```yaml
 env:
@@ -272,7 +286,10 @@ env:
   FRONTEND_CONTAINER_APP_NAME: ${{ secrets.FRONTEND_CONTAINER_APP_NAME }}
 ```
 
-#### Azure Login (OIDC)
+</details>
+
+<details>
+<summary>🔐 <b>Azure Login (OIDC)</b></summary>
 
 ```yaml
 - name: Azure Login
@@ -283,7 +300,10 @@ env:
     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 ```
 
-#### Image Tagging
+</details>
+
+<details>
+<summary>🏷️ <b>Image Tagging</b></summary>
 
 ```yaml
 - name: Set image tag
@@ -296,7 +316,10 @@ env:
     fi
 ```
 
-#### Container App Update
+</details>
+
+<details>
+<summary>🚀 <b>Container App Update</b></summary>
 
 ```yaml
 - name: Update DAB Container App
@@ -307,78 +330,89 @@ env:
       --image ${{ env.ACR_NAME }}.azurecr.io/dab:${{ needs.build-and-test.outputs.image_tag }}
 ```
 
+</details>
+
 ---
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
-### OIDC Authentication Fails
+### ❌ OIDC Authentication Fails
 
 **Error:** `AADSTS70021: No matching federated identity record found`
 
 **Solutions:**
-1. Verify federated credential configuration matches exactly
-2. Check organization, repository, and branch names
-3. Ensure the entity type matches (branch vs. environment)
+| # | ✅ Solution |
+|:-:|:----------|
+| 1 | Verify federated credential configuration matches exactly |
+| 2 | Check organization, repository, and branch names |
+| 3 | Ensure the entity type matches (branch vs. environment) |
 
-### ACR Push Permission Denied
+### ❌ ACR Push Permission Denied
 
 **Error:** `unauthorized: authentication required`
 
 **Solutions:**
-1. Verify `AcrPush` role is assigned
-2. Check ACR name in secrets
-3. Ensure admin user is enabled on ACR
+| # | ✅ Solution |
+|:-:|:----------|
+| 1 | Verify `AcrPush` role is assigned |
+| 2 | Check ACR name in secrets |
+| 3 | Ensure admin user is enabled on ACR |
 
-### Container App Update Fails
+### ❌ Container App Update Fails
 
 **Error:** `Container app not found`
 
 **Solutions:**
-1. Verify container app name in secrets
-2. Check resource group is correct
-3. Ensure initial deployment completed successfully
+| # | ✅ Solution |
+|:-:|:----------|
+| 1 | Verify container app name in secrets |
+| 2 | Check resource group is correct |
+| 3 | Ensure initial deployment completed successfully |
 
-### Health Check Fails
+### ❌ Health Check Fails
 
 **Error:** `Health check failed (HTTP 5xx)`
 
 **Solutions:**
-1. Check container app logs for startup errors
-2. Verify environment variables are correct
-3. Check database connectivity
+1. 📋 Check container app logs for startup errors
+2. ✅ Verify environment variables are correct
+3. 🔗 Check database connectivity
 
 ```bash
-# View recent logs
+# 📋 View recent logs
 az containerapp logs show \
   --name dabdemo-dev-ca-dab \
   --resource-group rg-dab-demo \
   --tail 100
 ```
 
-### Build Fails
+### ❌ Build Fails
 
 **Error:** `npm test failed`
 
 **Solutions:**
-1. Check test output in Actions logs
-2. Run tests locally: `cd src/frontend && npm test`
-3. Fix failing tests before pushing
+| # | ✅ Solution |
+|:-:|:----------|
+| 1 | Check test output in Actions logs |
+| 2 | Run tests locally: `cd src/frontend && npm test` |
+| 3 | Fix failing tests before pushing |
 
 ---
 
-## Best Practices
+## ✨ Best Practices
 
-### Branch Protection
+### 🔒 Branch Protection
 
 Enable branch protection on `main`:
+
 1. Go to **Settings** → **Branches**
 2. Add rule for `main`
 3. Enable:
-   - Require pull request reviews
-   - Require status checks (build-and-test, validate-bicep)
-   - Require branches to be up to date
+   - ✅ Require pull request reviews
+   - ✅ Require status checks (build-and-test, validate-bicep)
+   - ✅ Require branches to be up to date
 
-### Deployment Environments
+### 🌍 Deployment Environments
 
 For production deployments, use GitHub Environments:
 
@@ -387,18 +421,18 @@ For production deployments, use GitHub Environments:
 3. Add required reviewers
 4. Configure protection rules
 
-### Rollback
+### 🔄 Rollback
 
 To rollback to a previous version:
 
 ```bash
-# List previous revisions
+# 📋 List previous revisions
 az containerapp revision list \
   --name dabdemo-dev-ca-dab \
   --resource-group rg-dab-demo \
   -o table
 
-# Activate previous revision
+# 🔄 Activate previous revision
 az containerapp revision activate \
   --name dabdemo-dev-ca-dab \
   --resource-group rg-dab-demo \
@@ -407,9 +441,27 @@ az containerapp revision activate \
 
 ---
 
-## Related Documentation
+## 📚 Related Documentation
 
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Azure Login Action](https://github.com/Azure/login)
-- [OIDC Authentication](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-azure)
-- [Container Apps CLI](https://learn.microsoft.com/cli/azure/containerapp)
+| 📘 Resource | 🔗 Link |
+|:-----------|:--------|
+| 📖 GitHub Actions Documentation | [GitHub Docs](https://docs.github.com/en/actions) |
+| 🔐 Azure Login Action | [GitHub Marketplace](https://github.com/Azure/login) |
+| 🔑 OIDC Authentication | [GitHub Security Docs](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-azure) |
+| 📦 Container Apps CLI | [Microsoft Learn](https://learn.microsoft.com/cli/azure/containerapp) |
+
+---
+
+<div align="center">
+
+### 📚 Continue Learning
+
+[![Monitoring Guide](https://img.shields.io/badge/📊_Monitoring_Guide-4CAF50?style=for-the-badge)](./monitoring-guide.md)
+[![Auto-Scaling Guide](https://img.shields.io/badge/📈_Auto--Scaling_Guide-326CE5?style=for-the-badge)](./auto-scaling-guide.md)
+[![Back to Index](https://img.shields.io/badge/📚_Back_to_Index-gray?style=for-the-badge)](./index.md)
+
+---
+
+**Made with ❤️ for the Azure community**
+
+</div>

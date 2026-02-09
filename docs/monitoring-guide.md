@@ -1,40 +1,60 @@
-# Monitoring and Alerting Setup Guide
+# 📊 Monitoring and Alerting Setup Guide
 
-This guide provides comprehensive instructions for setting up Azure Monitor alerts, creating dashboards, and defining Service Level Objectives (SLOs) for the DOT Transportation Data Portal.
+<div align="center">
 
-## Table of Contents
+![Azure Monitor](https://img.shields.io/badge/Azure%20Monitor-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)
+![Log Analytics](https://img.shields.io/badge/Log%20Analytics-326CE5?style=for-the-badge&logo=azure-devops&logoColor=white)
+![Application Insights](https://img.shields.io/badge/App%20Insights-68217A?style=for-the-badge&logo=azure-devops&logoColor=white)
 
-1. [Overview](#overview)
-2. [Log Analytics Queries](#log-analytics-queries)
-3. [Recommended Alerts](#recommended-alerts)
-4. [Dashboard Templates](#dashboard-templates)
-5. [Service Level Objectives (SLOs)](#service-level-objectives-slos)
-6. [Alert Routing](#alert-routing)
-7. [Troubleshooting Queries](#troubleshooting-queries)
+### 📈 Comprehensive observability for the DOT Transportation Data Portal
+
+[📊 Queries](#-log-analytics-queries) • [🔔 Alerts](#-recommended-alerts) • [📋 Dashboards](#-dashboard-templates) • [🎯 SLOs](#-service-level-objectives-slos)
 
 ---
 
-## Overview
+[![KQL](https://img.shields.io/badge/📝_KQL-Query_Language-0078D4?style=flat-square)](https://docs.microsoft.com/azure/data-explorer/kql-quick-reference)
+[![Azure Monitor](https://img.shields.io/badge/📚_Azure_Monitor-Docs-00C853?style=flat-square)](https://docs.microsoft.com/azure/azure-monitor/)
+[![Container Apps](https://img.shields.io/badge/📦_Container_Apps-Monitoring-512BD4?style=flat-square)](https://docs.microsoft.com/azure/container-apps/observability)
+
+</div>
+
+---
+
+## 📑 Table of Contents
+
+| # | 📍 Section | 📝 Description |
+|:-:|:----------|:--------------|
+| 1 | [📖 Overview](#-overview) | Monitoring architecture |
+| 2 | [📊 Log Analytics Queries](#-log-analytics-queries) | KQL examples |
+| 3 | [🔔 Recommended Alerts](#-recommended-alerts) | Alert configurations |
+| 4 | [📋 Dashboard Templates](#-dashboard-templates) | Visualization setup |
+| 5 | [🎯 SLOs](#-service-level-objectives-slos) | Service level objectives |
+| 6 | [📧 Alert Routing](#-alert-routing) | Notification setup |
+| 7 | [🔧 Troubleshooting Queries](#-troubleshooting-queries) | Debug queries |
+
+---
+
+## 📖 Overview
 
 The architecture deploys the following monitoring resources:
 
-| Resource | Purpose |
-|----------|---------|
-| Log Analytics Workspace | Centralized log aggregation |
-| Application Insights | Application performance monitoring |
-| Container Apps Logs | Container-level diagnostics |
-| Front Door Analytics | Edge traffic and WAF logs |
+| 📦 Resource | 🎯 Purpose |
+|:-----------|:----------|
+| 📊 **Log Analytics Workspace** | Centralized log aggregation |
+| 📈 **Application Insights** | Application performance monitoring |
+| 📦 **Container Apps Logs** | Container-level diagnostics |
+| 🚪 **Front Door Analytics** | Edge traffic and WAF logs |
 
-### Access Monitoring Resources
+### 🔌 Access Monitoring Resources
 
 ```bash
-# Get Log Analytics Workspace ID
+# 📊 Get Log Analytics Workspace ID
 az monitor log-analytics workspace show \
   --resource-group $RESOURCE_GROUP \
   --workspace-name $WORKSPACE_NAME \
   --query customerId -o tsv
 
-# Get Application Insights connection string
+# 📈 Get Application Insights connection string
 az monitor app-insights component show \
   --resource-group $RESOURCE_GROUP \
   --app $APP_INSIGHTS_NAME \
@@ -43,12 +63,12 @@ az monitor app-insights component show \
 
 ---
 
-## Log Analytics Queries
+## 📊 Log Analytics Queries
 
-### Container Apps Performance
+### 📦 Container Apps Performance
 
 ```kusto
-// Container CPU and Memory Usage
+// 🐳 Container CPU and Memory Usage
 ContainerAppConsoleLogs_CL
 | where TimeGenerated > ago(1h)
 | where ContainerAppName_s contains "dab"
@@ -56,10 +76,10 @@ ContainerAppConsoleLogs_CL
 | order by TimeGenerated desc
 ```
 
-### DAB API Request Latency
+### ⚡ DAB API Request Latency
 
 ```kusto
-// API Response Times (P50, P90, P99)
+// 📊 API Response Times (P50, P90, P99)
 ContainerAppConsoleLogs_CL
 | where TimeGenerated > ago(1h)
 | where Log_s contains "request"
@@ -71,10 +91,10 @@ ContainerAppConsoleLogs_CL
 | render timechart
 ```
 
-### Front Door Traffic Analysis
+### 🚪 Front Door Traffic Analysis
 
 ```kusto
-// Requests by status code
+// 📊 Requests by status code
 AzureDiagnostics
 | where ResourceProvider == "MICROSOFT.CDN"
 | where Category == "FrontDoorAccessLog"
@@ -82,10 +102,10 @@ AzureDiagnostics
 | render piechart
 ```
 
-### Failed Authentication Attempts
+### 🔐 Failed Authentication Attempts
 
 ```kusto
-// Failed auth requests
+// 🚨 Failed auth requests
 AzureDiagnostics
 | where TimeGenerated > ago(24h)
 | where httpStatusCode_d == 401 or httpStatusCode_d == 403
@@ -94,10 +114,10 @@ AzureDiagnostics
 | order by FailedAttempts desc
 ```
 
-### SQL Database Performance
+### 🗄️ SQL Database Performance
 
 ```kusto
-// Query execution times
+// ⚡ Query execution times
 AzureDiagnostics
 | where ResourceProvider == "MICROSOFT.SQL"
 | where Category == "QueryStoreRuntimeStatistics"
@@ -110,11 +130,11 @@ AzureDiagnostics
 
 ---
 
-## Recommended Alerts
+## 🔔 Recommended Alerts
 
-### Critical Alerts (P1 - Immediate Response)
+### 🚨 Critical Alerts (P1 - Immediate Response)
 
-#### 1. Container App Unhealthy
+#### 1️⃣ Container App Unhealthy
 
 ```json
 {
@@ -128,7 +148,7 @@ AzureDiagnostics
 }
 ```
 
-**Configuration:**
+**⚙️ Configuration:**
 ```bash
 az monitor scheduled-query create \
   --name "DAB Container Unhealthy" \
@@ -141,7 +161,7 @@ az monitor scheduled-query create \
   --action-groups $ACTION_GROUP_ID
 ```
 
-#### 2. High Error Rate (5xx responses)
+#### 2️⃣ High Error Rate (5xx responses)
 
 ```json
 {
@@ -154,7 +174,7 @@ az monitor scheduled-query create \
 }
 ```
 
-#### 3. Database Connection Failures
+#### 3️⃣ Database Connection Failures
 
 ```json
 {
@@ -166,9 +186,9 @@ az monitor scheduled-query create \
 }
 ```
 
-### High Priority Alerts (P2 - Response within 30 minutes)
+### ⚠️ High Priority Alerts (P2 - Response within 30 minutes)
 
-#### 4. High Response Latency
+#### 4️⃣ High Response Latency
 
 ```json
 {
@@ -181,7 +201,7 @@ az monitor scheduled-query create \
 }
 ```
 
-#### 5. Container CPU High
+#### 5️⃣ Container CPU High
 
 ```json
 {
@@ -194,7 +214,7 @@ az monitor scheduled-query create \
 }
 ```
 
-#### 6. Container Memory High
+#### 6️⃣ Container Memory High
 
 ```json
 {
@@ -207,9 +227,9 @@ az monitor scheduled-query create \
 }
 ```
 
-### Medium Priority Alerts (P3 - Response within 4 hours)
+### 📋 Medium Priority Alerts (P3 - Response within 4 hours)
 
-#### 7. Elevated 4xx Errors
+#### 7️⃣ Elevated 4xx Errors
 
 ```json
 {
@@ -222,7 +242,7 @@ az monitor scheduled-query create \
 }
 ```
 
-#### 8. WAF Blocked Requests
+#### 8️⃣ WAF Blocked Requests
 
 ```json
 {
@@ -234,10 +254,13 @@ az monitor scheduled-query create \
 }
 ```
 
-### Deployment Script for All Alerts
+### 📜 Deployment Script for All Alerts
+
+<details>
+<summary>📋 <b>Click to expand PowerShell script</b></summary>
 
 ```powershell
-# Create Action Group
+# ➕ Create Action Group
 az monitor action-group create `
   --name "DOT-Portal-Alerts" `
   --resource-group $env:RESOURCE_GROUP `
@@ -245,7 +268,7 @@ az monitor action-group create `
   --email-receiver "name=TeamLead" "email=teamlead@contoso.com" `
   --sms-receiver "name=OnCall" "country-code=1" "phone-number=5551234567"
 
-# Create metric alerts for Container Apps
+# 🔔 Create metric alerts for Container Apps
 $alerts = @(
   @{name="CPU-High"; metric="CpuPercentage"; op="GreaterThan"; threshold=80; severity=2},
   @{name="Memory-High"; metric="MemoryPercentage"; op="GreaterThan"; threshold=85; severity=2},
@@ -263,15 +286,17 @@ foreach ($alert in $alerts) {
 }
 ```
 
+</details>
+
 ---
 
-## Dashboard Templates
+## 📋 Dashboard Templates
 
-### Overview Dashboard
+### 🖥️ Overview Dashboard
 
 Create a workbook with the following tiles:
 
-#### Tile 1: Request Volume (last 24h)
+#### 📊 Tile 1: Request Volume (last 24h)
 ```kusto
 AzureDiagnostics
 | where TimeGenerated > ago(24h)
@@ -279,7 +304,7 @@ AzureDiagnostics
 | render timechart
 ```
 
-#### Tile 2: Error Rate Trend
+#### 📈 Tile 2: Error Rate Trend
 ```kusto
 AzureDiagnostics
 | where TimeGenerated > ago(24h)
@@ -291,7 +316,7 @@ AzureDiagnostics
 | render timechart
 ```
 
-#### Tile 3: Response Time Percentiles
+#### ⏱️ Tile 3: Response Time Percentiles
 ```kusto
 AzureDiagnostics
 | where TimeGenerated > ago(4h)
@@ -303,7 +328,7 @@ AzureDiagnostics
 | render timechart
 ```
 
-#### Tile 4: Top Endpoints by Volume
+#### 📊 Tile 4: Top Endpoints by Volume
 ```kusto
 AzureDiagnostics
 | where TimeGenerated > ago(1h)
@@ -312,7 +337,7 @@ AzureDiagnostics
 | render barchart
 ```
 
-#### Tile 5: Geographic Distribution
+#### 🌍 Tile 5: Geographic Distribution
 ```kusto
 AzureDiagnostics
 | where TimeGenerated > ago(24h)
@@ -320,7 +345,8 @@ AzureDiagnostics
 | render piechart
 ```
 
-### ARM Template for Dashboard
+<details>
+<summary>📜 <b>ARM Template for Dashboard</b></summary>
 
 ```json
 {
@@ -356,19 +382,21 @@ AzureDiagnostics
 }
 ```
 
+</details>
+
 ---
 
-## Service Level Objectives (SLOs)
+## 🎯 Service Level Objectives (SLOs)
 
-### Availability SLO
+### ✅ Availability SLO
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| API Availability | 99.9% | Successful requests / Total requests |
-| Frontend Availability | 99.9% | Successful page loads / Total page loads |
-| Database Availability | 99.95% | Azure SQL SLA |
+| 📊 Metric | 🎯 Target | 📐 Measurement |
+|:---------|:---------|:--------------|
+| 🌐 API Availability | 99.9% | Successful requests / Total requests |
+| 🖥️ Frontend Availability | 99.9% | Successful page loads / Total page loads |
+| 🗄️ Database Availability | 99.95% | Azure SQL SLA |
 
-**Calculation Query:**
+**📊 Calculation Query:**
 ```kusto
 AzureDiagnostics
 | where TimeGenerated > ago(30d)
@@ -378,16 +406,16 @@ AzureDiagnostics
 | extend Availability = Successful * 100.0 / Total
 ```
 
-### Latency SLO
+### ⏱️ Latency SLO
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
+| 📊 Metric | 🎯 Target | 📐 Measurement |
+|:---------|:---------|:--------------|
 | API Response Time (p50) | < 200ms | 50th percentile response time |
 | API Response Time (p90) | < 500ms | 90th percentile response time |
 | API Response Time (p99) | < 2000ms | 99th percentile response time |
 | Page Load Time | < 3s | Frontend timing API |
 
-**SLO Dashboard Query:**
+**📊 SLO Dashboard Query:**
 ```kusto
 let slo_p50 = 200;
 let slo_p90 = 500;
@@ -399,19 +427,19 @@ AzureDiagnostics
     p90 = percentile(timeTaken_d, 90),
     p99 = percentile(timeTaken_d, 99)
 | extend
-    p50_met = iif(p50 < slo_p50, "Met", "Missed"),
-    p90_met = iif(p90 < slo_p90, "Met", "Missed"),
-    p99_met = iif(p99 < slo_p99, "Met", "Missed")
+    p50_met = iif(p50 < slo_p50, "✅ Met", "❌ Missed"),
+    p90_met = iif(p90 < slo_p90, "✅ Met", "❌ Missed"),
+    p99_met = iif(p99 < slo_p99, "✅ Met", "❌ Missed")
 ```
 
-### Error Rate SLO
+### ❌ Error Rate SLO
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
+| 📊 Metric | 🎯 Target | 📐 Measurement |
+|:---------|:---------|:--------------|
 | 5xx Error Rate | < 0.1% | Server errors / Total requests |
 | 4xx Error Rate | < 5% | Client errors / Total requests |
 
-### Error Budget
+### 💰 Error Budget
 
 Calculate remaining error budget:
 
@@ -431,17 +459,17 @@ AzureDiagnostics
     CurrentErrorRate = ErrorRate,
     AllowedErrorRate,
     RemainingErrorBudget = ErrorBudget,
-    BudgetStatus = iif(ErrorBudget > 0, "Healthy", "Exhausted")
+    BudgetStatus = iif(ErrorBudget > 0, "✅ Healthy", "❌ Exhausted")
 ```
 
 ---
 
-## Alert Routing
+## 📧 Alert Routing
 
-### Email Configuration
+### 📧 Email Configuration
 
 ```bash
-# Create action group with email
+# ➕ Create action group with email
 az monitor action-group create \
   --name "DOT-Email-Alerts" \
   --resource-group $RESOURCE_GROUP \
@@ -450,10 +478,13 @@ az monitor action-group create \
   --email-receiver "name=OnCall" "email=oncall@contoso.com"
 ```
 
-### Microsoft Teams Integration
+### 💬 Microsoft Teams Integration
 
 1. Create incoming webhook in Teams channel
 2. Configure Logic App to receive alerts and post to Teams
+
+<details>
+<summary>📜 <b>Logic App Template for Teams</b></summary>
 
 ```json
 {
@@ -497,10 +528,12 @@ az monitor action-group create \
 }
 ```
 
-### PagerDuty Integration
+</details>
+
+### 📟 PagerDuty Integration
 
 ```bash
-# Create action group with webhook to PagerDuty
+# ➕ Create action group with webhook to PagerDuty
 az monitor action-group create \
   --name "DOT-PagerDuty" \
   --resource-group $RESOURCE_GROUP \
@@ -511,9 +544,9 @@ az monitor action-group create \
 
 ---
 
-## Troubleshooting Queries
+## 🔧 Troubleshooting Queries
 
-### Recent Errors
+### 🚨 Recent Errors
 
 ```kusto
 ContainerAppConsoleLogs_CL
@@ -524,7 +557,7 @@ ContainerAppConsoleLogs_CL
 | take 100
 ```
 
-### Slow Requests
+### 🐌 Slow Requests
 
 ```kusto
 AzureDiagnostics
@@ -535,7 +568,7 @@ AzureDiagnostics
 | take 50
 ```
 
-### Container Restarts
+### 🔄 Container Restarts
 
 ```kusto
 ContainerAppConsoleLogs_CL
@@ -545,7 +578,7 @@ ContainerAppConsoleLogs_CL
 | order by TimeGenerated desc
 ```
 
-### Failed Database Queries
+### 🗄️ Failed Database Queries
 
 ```kusto
 AzureDiagnostics
@@ -556,7 +589,7 @@ AzureDiagnostics
 | take 100
 ```
 
-### WAF Blocked Requests Details
+### 🛡️ WAF Blocked Requests Details
 
 ```kusto
 AzureDiagnostics
@@ -568,32 +601,50 @@ AzureDiagnostics
 
 ---
 
-## Quick Reference
+## 📋 Quick Reference
 
-### Alert Severity Mapping
+### 🚨 Alert Severity Mapping
 
-| Severity | Response Time | Team Notification |
-|----------|---------------|-------------------|
-| Sev1 (Critical) | Immediate | SMS + Phone + Email + Teams |
-| Sev2 (High) | 30 minutes | Email + Teams |
-| Sev3 (Medium) | 4 hours | Email |
-| Sev4 (Low) | 24 hours | Dashboard only |
+| 🚨 Severity | ⏱️ Response Time | 📧 Team Notification |
+|:-----------|:----------------|:--------------------|
+| 🔴 Sev1 (Critical) | Immediate | SMS + Phone + Email + Teams |
+| 🟠 Sev2 (High) | 30 minutes | Email + Teams |
+| 🟡 Sev3 (Medium) | 4 hours | Email |
+| 🟢 Sev4 (Low) | 24 hours | Dashboard only |
 
-### Key Metrics to Watch
+### 📊 Key Metrics to Watch
 
-1. **Request Rate** - Traffic volume trends
-2. **Error Rate** - Application health
-3. **Latency (p99)** - User experience
-4. **CPU/Memory** - Resource utilization
-5. **Active Connections** - Database health
+| # | 📊 Metric | 📝 Purpose |
+|:-:|:---------|:----------|
+| 1 | **Request Rate** | Traffic volume trends |
+| 2 | **Error Rate** | Application health |
+| 3 | **Latency (p99)** | User experience |
+| 4 | **CPU/Memory** | Resource utilization |
+| 5 | **Active Connections** | Database health |
 
-### Useful Links
+### 📚 Useful Links
 
-- [Azure Monitor Documentation](https://docs.microsoft.com/azure/azure-monitor/)
-- [KQL Quick Reference](https://docs.microsoft.com/azure/data-explorer/kql-quick-reference)
-- [Container Apps Monitoring](https://docs.microsoft.com/azure/container-apps/observability)
-- [Azure SQL Monitoring](https://docs.microsoft.com/azure/azure-sql/database/monitor-tune-overview)
+| 📘 Resource | 🔗 Link |
+|:-----------|:--------|
+| 📖 Azure Monitor Documentation | [Microsoft Docs](https://docs.microsoft.com/azure/azure-monitor/) |
+| 📝 KQL Quick Reference | [Microsoft Docs](https://docs.microsoft.com/azure/data-explorer/kql-quick-reference) |
+| 📦 Container Apps Monitoring | [Microsoft Docs](https://docs.microsoft.com/azure/container-apps/observability) |
+| 🗄️ Azure SQL Monitoring | [Microsoft Docs](https://docs.microsoft.com/azure/azure-sql/database/monitor-tune-overview) |
+
+---
+
+<div align="center">
+
+### 📚 Continue Learning
+
+[![Auto-Scaling Guide](https://img.shields.io/badge/📈_Auto--Scaling_Guide-326CE5?style=for-the-badge)](./auto-scaling-guide.md)
+[![CI/CD Guide](https://img.shields.io/badge/⚙️_CI/CD_Guide-2088FF?style=for-the-badge)](./ci-cd-guide.md)
+[![Back to Index](https://img.shields.io/badge/📚_Back_to_Index-gray?style=for-the-badge)](./index.md)
 
 ---
 
 *Last Updated: 2026-02-09*
+
+**Made with ❤️ for the Azure community**
+
+</div>
