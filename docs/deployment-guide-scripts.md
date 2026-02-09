@@ -653,6 +653,182 @@ ContainerRegistryRepositoryEvents
 
 ---
 
+## Database Migration Strategy
+
+When your application evolves, you'll need to manage database schema changes in production. This section outlines recommended approaches.
+
+### Migration Philosophy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MIGRATION WORKFLOW                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   1. DEVELOP      2. TEST         3. DEPLOY      4. VERIFY  │
+│   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐ │
+│   │ Write    │   │ Local    │   │ Run in   │   │ Validate │ │
+│   │ migration│ → │ test     │ → │ staging  │ → │ in prod  │ │
+│   │ script   │   │ database │   │ then prod│   │          │ │
+│   └──────────┘   └──────────┘   └──────────┘   └──────────┘ │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Recommended Tools
+
+| Tool | Language | Pros | Cons |
+|------|----------|------|------|
+| **DbUp** | C#/.NET | Simple, CI/CD friendly | .NET only |
+| **Flyway** | Java/CLI | Multi-database, versioned | JRE required |
+| **Liquibase** | Java/CLI | XML/YAML changesets | Complex |
+| **sqlcmd scripts** | T-SQL | Native, no dependencies | Manual tracking |
+
+For this project, we recommend **DbUp** for .NET projects or **versioned SQL scripts** for simplicity.
+
+### Versioned SQL Script Approach
+
+1. **Create a migrations folder:**
+   ```
+   src/database/
+   ├── 001-schema.sql          # Initial schema
+   ├── 002-seed-data.sql       # Initial data
+   ├── 003-add-audit-columns.sql
+   ├── 004-add-composite-indexes.sql
+   └── migrations.json         # Track applied migrations
+   ```
+
+2. **Naming convention:** `NNN-description.sql`
+   - Always use sequential numbers
+   - Be descriptive: `003-add-user-preferences-table.sql`
+   - Never modify already-applied migrations
+
+3. **Create a migration tracking table:**
+   ```sql
+   CREATE TABLE [dbo].[__MigrationHistory] (
+       Id INT IDENTITY(1,1) PRIMARY KEY,
+       MigrationName NVARCHAR(255) NOT NULL,
+       AppliedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+       AppliedBy NVARCHAR(128) NOT NULL DEFAULT SUSER_NAME()
+   );
+   ```
+
+### Safe Migration Patterns
+
+**Adding a column (safe):**
+```sql
+-- 003-add-audit-columns.sql
+ALTER TABLE dbo.RailroadAccidents
+ADD CreatedBy NVARCHAR(128) NULL;
+
+ALTER TABLE dbo.RailroadAccidents
+ADD ModifiedBy NVARCHAR(128) NULL;
+```
+
+**Adding an index (safe, but can be slow):**
+```sql
+-- 004-add-composite-indexes.sql
+-- Use ONLINE = ON in production to avoid blocking
+CREATE INDEX IX_RailroadAccidents_StateDate
+ON dbo.RailroadAccidents(StateId, AccidentDate)
+WITH (ONLINE = ON);
+```
+
+**Renaming a column (requires care):**
+```sql
+-- 005-rename-column.sql
+-- Step 1: Add new column
+ALTER TABLE dbo.Bridges ADD ConditionRating INT NULL;
+
+-- Step 2: Copy data
+UPDATE dbo.Bridges SET ConditionRating = OldCondition;
+
+-- Step 3: (After app update) Drop old column
+-- ALTER TABLE dbo.Bridges DROP COLUMN OldCondition;
+```
+
+### Rollback Strategy
+
+1. **Before migration:** Take a backup
+   ```powershell
+   # Export database
+   az sql db export \
+     --resource-group $RG \
+     --server $SERVER \
+     --name $DB \
+     --admin-user $USER \
+     --admin-password $PASS \
+     --storage-key $KEY \
+     --storage-key-type StorageAccessKey \
+     --storage-uri "https://account.blob.core.windows.net/backups/pre-migration.bacpac"
+   ```
+
+2. **Write reversible migrations when possible:**
+   ```sql
+   -- Forward migration
+   ALTER TABLE dbo.States ADD Population INT NULL;
+
+   -- Rollback script (keep separate)
+   ALTER TABLE dbo.States DROP COLUMN Population;
+   ```
+
+3. **For irreversible changes:** Test thoroughly in staging first
+
+### CI/CD Integration
+
+Add migration step to GitHub Actions:
+
+```yaml
+# In .github/workflows/deploy.yml
+- name: Run Database Migrations
+  env:
+    SQL_SERVER: ${{ secrets.SQL_SERVER }}
+    SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
+    SQL_USER: ${{ secrets.SQL_USER }}
+    SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+  run: |
+    # Run all pending migrations
+    for migration in src/database/migrations/*.sql; do
+      echo "Applying $migration..."
+      sqlcmd -S $SQL_SERVER -d $SQL_DATABASE \
+             -U $SQL_USER -P $SQL_PASSWORD \
+             -i "$migration"
+    done
+```
+
+### Testing Migrations Locally
+
+```powershell
+# 1. Start local SQL Server with Docker
+docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrong@Passw0rd" \
+  -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
+
+# 2. Apply migrations
+sqlcmd -S localhost -U sa -P YourStrong@Passw0rd \
+  -i src/database/001-schema.sql
+
+# 3. Run your migration
+sqlcmd -S localhost -U sa -P YourStrong@Passw0rd \
+  -i src/database/migrations/003-new-migration.sql
+
+# 4. Verify
+sqlcmd -S localhost -U sa -P YourStrong@Passw0rd \
+  -Q "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'YourTable'"
+```
+
+### Best Practices Summary
+
+| Practice | Why |
+|----------|-----|
+| Version all migrations | Track what's applied where |
+| Never modify applied migrations | Prevents state drift |
+| Test in staging first | Catch issues before production |
+| Take backups before major changes | Enable rollback |
+| Use online operations | Minimize downtime |
+| Make migrations idempotent | Safe to re-run |
+| Document breaking changes | Coordinate with app updates |
+
+---
+
 ## Next Steps
 
 After successful deployment:

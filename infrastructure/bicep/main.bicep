@@ -96,7 +96,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
     name: 'Basic'
   }
   properties: {
-    adminUserEnabled: true
+    adminUserEnabled: false // Security: Use managed identity instead of admin credentials
     publicNetworkAccess: 'Enabled'
   }
 }
@@ -219,6 +219,9 @@ resource fileDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-previ
 // Azure SQL Database
 // ============================================================================
 
+// NOTE: Public network access is enabled for demo/dev convenience.
+// For production, set publicNetworkAccess: 'Disabled' and use Private Endpoints.
+// See docs/best-practices-guide.md for production configuration guidance.
 resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
   name: sqlServerName
   location: location
@@ -227,7 +230,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
     administratorLoginPassword: sqlAdminPassword
     version: '12.0'
     minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Enabled' // Demo only - use 'Disabled' + Private Endpoint in production
   }
 }
 
@@ -248,11 +251,13 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
 }
 
 // Allow Azure services to access SQL
+// NOTE: This rule allows ANY Azure service (from any subscription) to connect.
+// For production, remove this rule and use Private Endpoints instead.
 resource sqlFirewallAzure 'Microsoft.Sql/servers/firewallRules@2023-05-01-preview' = {
   parent: sqlServer
   name: 'AllowAzureServices'
   properties: {
-    startIpAddress: '0.0.0.0'
+    startIpAddress: '0.0.0.0' // Special Azure services rule - demo only
     endIpAddress: '0.0.0.0'
   }
 }
@@ -389,6 +394,9 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = if (de
 resource dabContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployContainers) {
   name: dabContainerAppName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
@@ -398,37 +406,16 @@ resource dabContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployCo
         targetPort: 5000
         transport: 'http'
         allowInsecure: false
-        corsPolicy: {
-          allowedOrigins: [
-            '*'
-          ]
-          allowedMethods: [
-            'GET'
-            'POST'
-            'PUT'
-            'PATCH'
-            'DELETE'
-            'OPTIONS'
-          ]
-          allowedHeaders: [
-            '*'
-          ]
-          allowCredentials: true
-          maxAge: 3600
-        }
+        // Note: CORS is configured in DAB dab-config.json to avoid conflicts
+        // The ALLOWED_ORIGINS env var controls which origins can access the API
       }
       registries: [
         {
           server: acr.properties.loginServer
-          username: acr.listCredentials().username
-          passwordSecretRef: 'acr-password'
+          identity: 'system' // Use managed identity instead of admin credentials
         }
       ]
       secrets: [
-        {
-          name: 'acr-password'
-          value: acr.listCredentials().passwords[0].value
-        }
         {
           name: 'database-connection-string'
           value: databaseConnectionString
@@ -464,6 +451,10 @@ resource dabContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployCo
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: (enableDiagnostics && !empty(logAnalyticsWorkspaceId)) ? appInsights.properties.ConnectionString : ''
+            }
+            {
+              name: 'ALLOWED_ORIGINS'
+              value: deployFrontDoor ? 'https://${frontDoorEndpointName}.azurefd.net' : 'https://${frontendContainerAppName}.${location}.azurecontainerapps.io'
             }
           ]
           probes: [
@@ -518,6 +509,9 @@ resource dabContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployCo
 resource frontendContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployContainers) {
   name: frontendContainerAppName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
@@ -531,14 +525,7 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (dep
       registries: [
         {
           server: acr.properties.loginServer
-          username: acr.listCredentials().username
-          passwordSecretRef: 'acr-password'
-        }
-      ]
-      secrets: [
-        {
-          name: 'acr-password'
-          value: acr.listCredentials().passwords[0].value
+          identity: 'system' // Use managed identity instead of admin credentials
         }
       ]
     }
@@ -595,9 +582,110 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (dep
   }
 }
 
+// Container App Diagnostic Settings - DAB
+resource dabContainerAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployContainers && enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${dabContainerAppName}-diagnostics'
+  scope: dabContainerApp
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+// Container App Diagnostic Settings - Frontend
+resource frontendContainerAppDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (deployContainers && enableDiagnostics && !empty(logAnalyticsWorkspaceId)) {
+  name: '${frontendContainerAppName}-diagnostics'
+  scope: frontendContainerApp
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
+// ============================================================================
+// ACR Role Assignments for Container Apps (Managed Identity)
+// ============================================================================
+
+// AcrPull role ID: 7f951dda-4ed3-4680-a7ca-43fe172d538d
+var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+
+// Grant AcrPull role to DAB Container App managed identity
+resource dabAcrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployContainers) {
+  name: guid(acr.id, dabContainerApp.id, acrPullRoleId)
+  scope: acr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalId: dabContainerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Grant AcrPull role to Frontend Container App managed identity
+resource frontendAcrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployContainers) {
+  name: guid(acr.id, frontendContainerApp.id, acrPullRoleId)
+  scope: acr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
+    principalId: frontendContainerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // ============================================================================
 // Azure Front Door (HTTPS/SSL Termination)
 // ============================================================================
+
+// WAF Policy for Front Door (production security)
+resource wafPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2022-05-01' = if (deployFrontDoor && deployContainers && environment == 'prod') {
+  name: '${resourcePrefix}-waf'
+  location: 'global'
+  sku: {
+    name: 'Standard_AzureFrontDoor'
+  }
+  properties: {
+    policySettings: {
+      enabledState: 'Enabled'
+      mode: 'Prevention'
+      requestBodyCheck: 'Enabled'
+    }
+    managedRules: {
+      managedRuleSets: [
+        {
+          ruleSetType: 'Microsoft_DefaultRuleSet'
+          ruleSetVersion: '2.1'
+          ruleSetAction: 'Block'
+        }
+        {
+          ruleSetType: 'Microsoft_BotManagerRuleSet'
+          ruleSetVersion: '1.0'
+          ruleSetAction: 'Block'
+        }
+      ]
+    }
+  }
+}
 
 resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-05-01' = if (deployFrontDoor && deployContainers) {
   name: frontDoorName
@@ -607,6 +695,32 @@ resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-05-01' = if (deployFrontD
   }
   properties: {
     originResponseTimeoutSeconds: 60
+  }
+}
+
+// WAF Security Policy (links WAF to Front Door endpoint)
+resource wafSecurityPolicy 'Microsoft.Cdn/profiles/securityPolicies@2023-05-01' = if (deployFrontDoor && deployContainers && environment == 'prod') {
+  parent: frontDoorProfile
+  name: '${resourcePrefix}-waf-policy'
+  properties: {
+    parameters: {
+      type: 'WebApplicationFirewall'
+      wafPolicy: {
+        id: wafPolicy.id
+      }
+      associations: [
+        {
+          domains: [
+            {
+              id: frontDoorEndpoint.id
+            }
+          ]
+          patternsToMatch: [
+            '/*'
+          ]
+        }
+      ]
+    }
   }
 }
 

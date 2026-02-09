@@ -308,6 +308,101 @@ CREATE INDEX IX_VehicleFatalities_LandUse ON dbo.VehicleFatalities(LandUse);
 GO
 
 -- ============================================
+-- UpdatedAt Triggers
+-- ============================================
+
+-- Categories table trigger
+CREATE OR ALTER TRIGGER trg_Categories_UpdatedAt
+ON dbo.Categories
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Categories
+    SET UpdatedAt = GETUTCDATE()
+    FROM dbo.Categories t
+    INNER JOIN inserted i ON t.Id = i.Id;
+END;
+GO
+
+-- RailroadAccidents table trigger
+CREATE OR ALTER TRIGGER trg_RailroadAccidents_UpdatedAt
+ON dbo.RailroadAccidents
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.RailroadAccidents
+    SET UpdatedAt = GETUTCDATE()
+    FROM dbo.RailroadAccidents t
+    INNER JOIN inserted i ON t.Id = i.Id;
+END;
+GO
+
+-- Bridges table trigger
+CREATE OR ALTER TRIGGER trg_Bridges_UpdatedAt
+ON dbo.Bridges
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.Bridges
+    SET UpdatedAt = GETUTCDATE()
+    FROM dbo.Bridges t
+    INNER JOIN inserted i ON t.Id = i.Id;
+END;
+GO
+
+-- TransitAgencies table trigger
+CREATE OR ALTER TRIGGER trg_TransitAgencies_UpdatedAt
+ON dbo.TransitAgencies
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.TransitAgencies
+    SET UpdatedAt = GETUTCDATE()
+    FROM dbo.TransitAgencies t
+    INNER JOIN inserted i ON t.Id = i.Id;
+END;
+GO
+
+-- VehicleFatalities table trigger
+CREATE OR ALTER TRIGGER trg_VehicleFatalities_UpdatedAt
+ON dbo.VehicleFatalities
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.VehicleFatalities
+    SET UpdatedAt = GETUTCDATE()
+    FROM dbo.VehicleFatalities t
+    INNER JOIN inserted i ON t.Id = i.Id;
+END;
+GO
+
+-- ============================================
+-- Composite Indexes for Common Query Patterns
+-- ============================================
+
+-- Filter by State and Date for railroad accidents
+CREATE INDEX IX_RailroadAccidents_StateId_AccidentDate
+ON dbo.RailroadAccidents(StateId, AccidentDate);
+
+-- Filter by State and Condition for bridges
+CREATE INDEX IX_Bridges_StateId_OverallCondition
+ON dbo.Bridges(StateId, OverallCondition);
+
+-- Filter by State and Year for vehicle fatalities
+CREATE INDEX IX_VehicleFatalities_StateId_CrashYear
+ON dbo.VehicleFatalities(StateId, CrashYear);
+
+-- Filter by State and ReportYear for transit agencies
+CREATE INDEX IX_TransitAgencies_StateId_ReportYear
+ON dbo.TransitAgencies(StateId, ReportYear);
+GO
+
+-- ============================================
 -- Views for API consumption
 -- ============================================
 

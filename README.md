@@ -129,7 +129,7 @@ For detailed architecture documentation, see [docs/architecture.md](docs/archite
 ### 1. Clone and Configure
 
 ```bash
-git clone https://github.com/<your-username>/azure-dab-fullstack-demo.git
+git clone https://github.com/fgarofalo56/azure-dab-fullstack-demo.git
 cd azure-dab-fullstack-demo
 ```
 

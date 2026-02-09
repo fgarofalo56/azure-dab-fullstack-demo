@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   lint-and-test:
@@ -36,6 +36,45 @@ jobs:
       - name: Test frontend
         working-directory: src/frontend
         run: npm run test -- --run
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: src/frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Run Trivy container scan on DAB
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'src/dab-config'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Run Trivy container scan on Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'src/frontend'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
 
   validate-bicep:
     name: Validate Bicep

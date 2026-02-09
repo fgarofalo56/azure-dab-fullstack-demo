@@ -86,7 +86,7 @@ graph TB
 3. Search for **Resource group**
 4. Click **Create**
 
-![Search Resource Groups](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/media/manage-resource-groups-portal/search-resource-group.png)
+![Resource Groups List](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/media/manage-resource-groups-portal/manage-resource-groups-list-groups.png)
 
 ### Configuration
 
@@ -130,7 +130,7 @@ graph TB
 3. Enable **Admin user**
 4. Note the **Login server**, **Username**, and **Password**
 
-![ACR Access Keys](https://learn.microsoft.com/en-us/azure/container-registry/media/container-registry-authentication/acr-access-keys.png)
+> **Portal Path:** Container Registry → Settings → Access keys → Enable Admin user toggle
 
 ```
 Login server: acrdabdemo.azurecr.io
@@ -157,7 +157,7 @@ Password:     xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Click **Create new** under Server:
 
-![Create SQL Server](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/create-database-server.png)
+![Create SQL Database](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/new-sql-database-basics.png)
 
 | Field | Value |
 |-------|-------|
@@ -184,7 +184,7 @@ Click **Create new** under Server:
 | Allow Azure services | **Yes** |
 | Add current client IP | **Yes** |
 
-![SQL Firewall Settings](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/secure-database-tutorial/firewall-settings.png)
+![SQL Database Networking](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/networking.png)
 
 > **Security:** "Allow Azure services" enables Container Apps to connect. For production, consider using Private Endpoints.
 
@@ -367,7 +367,7 @@ docker push acrdabdemo.azurecr.io/frontend:latest
 3. Search for **Container Apps Environment**
 4. Click **Create**
 
-![Create Environment](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-environment-create.png)
+![Container Apps Quickstart](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-quickstart.png)
 
 ### Basics Tab
 
@@ -398,7 +398,7 @@ docker push acrdabdemo.azurecr.io/frontend:latest
 3. Search for **Container App**
 4. Click **Create**
 
-![Create Container App](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-create-and-deploy.png)
+> **Portal Steps:** Search for "Container App" → Create → Configure basics, container, and ingress settings.
 
 #### Basics Tab
 
@@ -608,7 +608,7 @@ To delete app registrations:
 2. Check **Revisions and replicas** for failed revisions
 3. Check **Log stream** for application errors
 
-![Revision Health](https://learn.microsoft.com/en-us/azure/container-apps/media/revisions/revision-details.png)
+> **Check Revision Status:** In the Container App → Revisions panel, verify the revision shows "Running" status with active replicas.
 
 ### Scale-to-Zero Cold Starts
 

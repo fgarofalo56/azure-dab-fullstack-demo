@@ -60,7 +60,7 @@ A resource group is a container that holds all related Azure resources.
 
 2. **Search** for "Resource groups" in the top search bar
 
-   ![Search Resource Groups](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/media/manage-resource-groups-portal/search-resource-group.png)
+   ![Resource Groups in Azure Portal](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/media/manage-resource-groups-portal/manage-resource-groups-list-groups.png)
    *Source: [Microsoft Learn](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)*
 
 3. Click **+ Create**
@@ -97,8 +97,8 @@ The database stores all transportation data that DAB will expose as APIs.
    | Server admin login | `sqladmin` |
    | Password | Create a strong password (save it!) |
 
-   ![Create SQL Server](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/create-database-server.png)
-   *Source: [Microsoft Learn - Create SQL Server](https://learn.microsoft.com/en-us/azure/azure-sql/database/single-database-create-quickstart)*
+   ![Create SQL Database](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/new-sql-database-basics.png)
+   *Source: [Microsoft Learn - Create SQL Database](https://learn.microsoft.com/en-us/azure/azure-sql/database/single-database-create-quickstart)*
 
 3. Click **Review + create**, then **Create**
 
@@ -131,8 +131,8 @@ The database stores all transportation data that DAB will expose as APIs.
 
 4. Click **Save**
 
-   ![SQL Firewall](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/secure-database-tutorial/firewall-settings.png)
-   *Source: [Microsoft Learn - SQL Firewall](https://learn.microsoft.com/en-us/azure/azure-sql/database/secure-database-tutorial)*
+   ![SQL Database Networking](https://learn.microsoft.com/en-us/azure/azure-sql/database/media/single-database-create-quickstart/networking.png)
+   *Source: [Microsoft Learn - SQL Database Networking](https://learn.microsoft.com/en-us/azure/azure-sql/database/single-database-create-quickstart)*
 
 #### 2.4 Initialize Database Schema
 
@@ -179,8 +179,9 @@ To allow Container Apps to pull images:
    - Username: `acrdotportal`
    - Password: (copy one of the passwords)
 
-   ![ACR Access Keys](https://learn.microsoft.com/en-us/azure/container-registry/media/container-registry-authentication/acr-access-keys.png)
-   *Source: [Microsoft Learn - ACR Access Keys](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication)*
+   > **Note:** In the Azure Portal, navigate to your Container Registry → Settings → Access keys. Enable the Admin user toggle to reveal the username and passwords needed for Container Apps to pull images.
+   >
+   > *Reference: [Microsoft Learn - ACR Authentication](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication)*
 
 ---
 
@@ -243,8 +244,8 @@ The environment is a secure boundary for your container apps.
 
 4. Click **Review + create**, then **Create**
 
-   ![Create Environment](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-environment-create.png)
-   *Source: [Microsoft Learn - Container Apps Environment](https://learn.microsoft.com/en-us/azure/container-apps/environment)*
+   ![Container Apps Quickstart](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-quickstart.png)
+   *Source: [Microsoft Learn - Container Apps Quickstart](https://learn.microsoft.com/en-us/azure/container-apps/quickstart-portal)*
 
 ---
 
@@ -290,8 +291,9 @@ This container runs Data API Builder to serve your REST and GraphQL APIs.
 
 6. Click **Review + create**, then **Create**
 
-   ![Create Container App](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-create-and-deploy.png)
-   *Source: [Microsoft Learn - Create Container App](https://learn.microsoft.com/en-us/azure/container-apps/quickstart-portal)*
+   > **Tip:** After configuring all settings, click "Review + create" to validate your configuration, then "Create" to deploy the container app.
+   >
+   > *Reference: [Microsoft Learn - Container Apps Quickstart](https://learn.microsoft.com/en-us/azure/container-apps/quickstart-portal)*
 
 ---
 
@@ -428,7 +430,9 @@ This container runs the React web application.
    - Replica count shows at least 1 active
    - Health state shows **Healthy**
 
-   ![Revision Health](https://learn.microsoft.com/en-us/azure/container-apps/media/revisions/revision-details.png)
+   > **Tip:** In the Revisions panel, you can see the status of each revision, including replica count, health state, and traffic allocation. A healthy revision shows "Running" status with active replicas.
+   >
+   > *Reference: [Microsoft Learn - Container Apps Revisions](https://learn.microsoft.com/en-us/azure/container-apps/revisions)*
 
 ---
 

@@ -13,12 +13,12 @@
     "graphql": {
       "enabled": true,
       "path": "/graphql",
-      "allow-introspection": true
+      "allow-introspection": false
     },
     "host": {
       "cors": {
-        "origins": ["*"],
-        "allow-credentials": false
+        "origins": ["@env('ALLOWED_ORIGINS')"],
+        "allow-credentials": true
       },
       "authentication": {
         "provider": "AzureAD",

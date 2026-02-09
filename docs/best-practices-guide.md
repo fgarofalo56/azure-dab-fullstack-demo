@@ -162,6 +162,79 @@ az monitor diagnostic-settings create \
 
 ---
 
+### 6. SQL Server Network Security
+
+> **⚠️ Demo Configuration Notice:** This demo project enables SQL Server public network access for ease of deployment. For production environments, this should be changed.
+
+#### Current Demo Configuration (Not for Production)
+
+This demo uses:
+- `publicNetworkAccess: 'Enabled'`
+- Azure Services firewall rule (`0.0.0.0` to `0.0.0.0`)
+
+This allows any Azure resource to attempt database connections, which is convenient for demos but increases attack surface.
+
+#### Production Configuration (Recommended)
+
+For production deployments, implement private networking:
+
+```bicep
+// 1. Disable public network access
+resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
+  properties: {
+    publicNetworkAccess: 'Disabled'
+  }
+}
+
+// 2. Create Private Endpoint
+resource sqlPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+  name: 'pe-sql-${baseName}'
+  location: location
+  properties: {
+    subnet: {
+      id: subnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'sql-connection'
+        properties: {
+          privateLinkServiceId: sqlServer.id
+          groupIds: ['sqlServer']
+        }
+      }
+    ]
+  }
+}
+
+// 3. Configure Private DNS Zone
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.database.windows.net'
+  location: 'global'
+}
+```
+
+**Production Architecture:**
+```
+┌────────────────────────────────────────────────────────────┐
+│                    PRIVATE NETWORKING                        │
+├────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Container Apps ──────► Private Endpoint ──────► SQL DB    │
+│   (VNet Integration)      (No public IP)       (Private)    │
+│                                                              │
+│   Benefits:                                                 │
+│   • Traffic stays within Azure backbone                     │
+│   • No public IP exposure                                   │
+│   • Meets compliance requirements (HIPAA, PCI-DSS)         │
+│   • Reduced attack surface                                  │
+│                                                              │
+└────────────────────────────────────────────────────────────┘
+```
+
+> **Reference:** [Azure SQL Private Endpoint](https://learn.microsoft.com/en-us/azure/azure-sql/database/private-endpoint-overview)
+
+---
+
 ## Performance Best Practices
 
 ### 1. Right-Size Your Containers

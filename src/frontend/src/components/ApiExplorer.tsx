@@ -1,9 +1,17 @@
 /**
  * API Explorer Component
  * Interactive REST API documentation and testing interface
+ *
+ * Accessibility features:
+ * - role="dialog" with aria-modal="true"
+ * - aria-labelledby for dialog title
+ * - Focus trap within modal
+ * - Escape key to close
+ * - Return focus on close
+ * - Proper form labeling
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { useApiToken } from '../hooks/useApiToken';
 
 // API endpoint definitions
@@ -153,6 +161,60 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Accessibility
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+
+  // Store previously focused element
+  useEffect(() => {
+    previousActiveElement.current = document.activeElement as HTMLElement;
+    return () => {
+      previousActiveElement.current?.focus();
+    };
+  }, []);
+
+  // Escape key handler
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+
+      // Focus trap
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Auto-focus first interactive element
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const firstButton = modalRef.current?.querySelector<HTMLElement>('button');
+      firstButton?.focus();
+    });
+  }, []);
+
   const endpoint = API_ENDPOINTS[selectedEndpoint];
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -193,26 +255,39 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-blue-800 to-blue-600 rounded-t-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center" aria-hidden="true">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">REST API Explorer</h2>
+              <h2 id={titleId} className="text-xl font-bold text-white">REST API Explorer</h2>
               <p className="text-blue-200 text-sm">Explore and test DAB REST endpoints</p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close API Explorer"
             className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -260,8 +335,12 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Tabs */}
-            <div className="flex gap-2 px-6 py-3 bg-slate-100 border-b">
+            <div className="flex gap-2 px-6 py-3 bg-slate-100 border-b" role="tablist" aria-label="API Explorer views">
               <button
+                role="tab"
+                aria-selected={activeTab === 'docs'}
+                aria-controls="tab-panel-docs"
+                id="tab-docs"
                 onClick={() => setActiveTab('docs')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'docs'
@@ -272,6 +351,10 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
                 Documentation
               </button>
               <button
+                role="tab"
+                aria-selected={activeTab === 'try'}
+                aria-controls="tab-panel-try"
+                id="tab-try"
                 onClick={() => setActiveTab('try')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'try'
@@ -286,7 +369,12 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
             {/* Tab Content */}
             <div className="flex-1 overflow-y-auto p-6">
               {activeTab === 'docs' ? (
-                <div className="space-y-6">
+                <div
+                  id="tab-panel-docs"
+                  role="tabpanel"
+                  aria-labelledby="tab-docs"
+                  className="space-y-6"
+                >
                   {/* Endpoint Header */}
                   <div>
                     <h3 className="text-2xl font-bold text-slate-800 font-mono">
@@ -378,10 +466,17 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div
+                  id="tab-panel-try"
+                  role="tabpanel"
+                  aria-labelledby="tab-try"
+                  className="space-y-4"
+                >
                   {/* Method and URL */}
                   <div className="flex gap-4">
+                    <label className="sr-only" htmlFor="http-method">HTTP Method</label>
                     <select
+                      id="http-method"
                       value={method}
                       onChange={(e) => setMethod(e.target.value as typeof method)}
                       className="px-4 py-2 border rounded-lg font-medium bg-white"
@@ -398,11 +493,12 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
 
                   {/* Query Parameters */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label htmlFor="query-params" className="block text-sm font-medium text-slate-700 mb-2">
                       Query Parameters
                     </label>
                     <input
                       type="text"
+                      id="query-params"
                       value={queryParams}
                       onChange={(e) => setQueryParams(e.target.value)}
                       placeholder="$first=10&$orderby=Id desc"
@@ -413,10 +509,11 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
                   {/* Request Body (for POST/PATCH) */}
                   {(method === 'POST' || method === 'PATCH') && (
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <label htmlFor="request-body" className="block text-sm font-medium text-slate-700 mb-2">
                         Request Body (JSON)
                       </label>
                       <textarea
+                        id="request-body"
                         value={requestBody}
                         onChange={(e) => setRequestBody(e.target.value)}
                         placeholder={JSON.stringify(endpoint.example, null, 2)}
@@ -429,16 +526,17 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
                   <button
                     onClick={handleTryApi}
                     disabled={isLoading}
+                    aria-busy={isLoading}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
                   >
                     {isLoading ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Sending...
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
+                        <span aria-live="polite">Sending...</span>
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                         Send Request
@@ -448,15 +546,19 @@ export function ApiExplorer({ onClose }: ApiExplorerProps) {
 
                   {/* Response */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <span id="response-label" className="block text-sm font-medium text-slate-700 mb-2">
                       Response
-                    </label>
+                    </span>
                     {error && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2 text-red-700 text-sm">
+                      <div role="alert" className="bg-red-50 border border-red-200 rounded-lg p-3 mb-2 text-red-700 text-sm">
                         <strong>Error:</strong> {error}
                       </div>
                     )}
-                    <pre className="bg-slate-900 text-green-400 rounded-lg p-4 overflow-auto max-h-80 text-sm">
+                    <pre
+                      className="bg-slate-900 text-green-400 rounded-lg p-4 overflow-auto max-h-80 text-sm"
+                      aria-labelledby="response-label"
+                      aria-live="polite"
+                    >
                       {response || (
                         <span className="text-slate-500">Response will appear here...</span>
                       )}

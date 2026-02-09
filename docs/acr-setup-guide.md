@@ -129,8 +129,9 @@ The admin user provides simple username/password authentication for Container Ap
    - Username: `acrdotportal`
    - Password: (copy one of the passwords)
 
-   ![ACR Access Keys](https://learn.microsoft.com/en-us/azure/container-registry/media/container-registry-authentication/acr-access-keys.png)
-   *Source: [Microsoft Learn - ACR Authentication](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication)*
+   > **Portal Path:** Container Registry → Settings → Access keys → Enable the Admin user toggle to reveal credentials.
+   >
+   > *Reference: [Microsoft Learn - ACR Authentication](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication)*
 
 #### Via Cloud Shell:
 

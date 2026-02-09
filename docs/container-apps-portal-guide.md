@@ -40,7 +40,7 @@ The Container Apps Environment is a secure boundary around Container Apps that s
 3. Search for **Container Apps Environment**
 4. Click **Create**
 
-![Create Environment](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-environment-create.png)
+![Container Apps Quickstart](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-quickstart.png)
 
 > **Tip:** The environment acts as a Kubernetes namespace - apps within it can communicate via internal DNS.
 
@@ -83,7 +83,7 @@ For development/demo purposes:
 3. Search for **Container App**
 4. Click **Create**
 
-![Create Container App](https://learn.microsoft.com/en-us/azure/container-apps/media/get-started/azure-container-apps-create-and-deploy.png)
+> **Portal Steps:** Search for "Container App" → Create → Configure basics, container image, and ingress settings.
 
 ### Step 2: Configure Basics
 

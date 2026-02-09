@@ -94,24 +94,40 @@ export async function getAccessToken(
 
 /**
  * Build DAB REST API query string from pagination params
- * Note: DAB uses $first instead of $top, and cursor-based pagination with $after
+ *
+ * IMPORTANT: DAB has different pagination behavior than standard OData:
+ * - Uses `$first` instead of `$top` for limiting results
+ * - Uses cursor-based pagination with `$after` instead of `$skip`
+ * - Does NOT support `$count=true` in REST API
+ *
+ * Pagination Strategy for this Demo:
+ * - Client-side pagination is used for demo purposes (fetch all, paginate locally)
+ * - For production with large datasets, implement cursor-based pagination using
+ *   the `$after` parameter with the cursor returned from previous responses
+ *
+ * @see https://learn.microsoft.com/azure/data-api-builder/rest#pagination
  */
 export function buildODataQuery(params: PaginationParams): string {
   const queryParts: string[] = [];
 
-  // DAB uses $first instead of $top
+  // DAB uses $first instead of $top for limiting results
   if (params.top !== undefined) {
     queryParts.push(`$first=${params.top}`);
   }
+
   // Note: DAB doesn't support $skip - it uses cursor-based pagination with $after
-  // For now, we'll fetch all data up to the page we need (not ideal but works for demo)
+  // The skip parameter is intentionally ignored here
+  // For server-side pagination, use the cursor from previous response's nextLink
+
   if (params.orderBy) {
     queryParts.push(`$orderby=${encodeURIComponent(params.orderBy)}`);
   }
   if (params.filter) {
     queryParts.push(`$filter=${encodeURIComponent(params.filter)}`);
   }
+
   // Note: DAB doesn't support $count=true in REST API
+  // Count is returned in GraphQL responses only
 
   return queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 }

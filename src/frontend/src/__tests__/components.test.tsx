@@ -87,8 +87,9 @@ describe('Pagination', () => {
     );
 
     expect(screen.getByText(/Showing/)).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
+    // Use getAllByText since numbers appear multiple times (in info text and page buttons)
+    expect(screen.getAllByText('1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('10').length).toBeGreaterThan(0);
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
@@ -321,7 +322,12 @@ describe('CrudModal', () => {
   it('shows loading state', () => {
     render(<CrudModal {...defaultProps} mode="edit" isLoading={true} />);
 
-    expect(screen.getByText('Save').closest('button')).toBeDisabled();
+    // When loading, the button shows "Processing..." instead of "Save"
+    expect(screen.getByText('Processing...')).toBeInTheDocument();
+    // The button should be disabled
+    const buttons = screen.getAllByRole('button');
+    const submitButton = buttons.find(btn => btn.textContent?.includes('Processing'));
+    expect(submitButton).toBeDisabled();
   });
 
   it('handles form input changes', () => {

@@ -194,6 +194,35 @@ if (-not $sqlPassword) {
     )
 }
 
+# Validate SQL password meets Azure SQL requirements
+function Test-SqlPasswordComplexity {
+    param([string]$Password)
+
+    if ($Password.Length -lt 12) {
+        return "Password must be at least 12 characters long"
+    }
+    if ($Password -notmatch '[A-Z]') {
+        return "Password must contain at least one uppercase letter"
+    }
+    if ($Password -notmatch '[a-z]') {
+        return "Password must contain at least one lowercase letter"
+    }
+    if ($Password -notmatch '[0-9]') {
+        return "Password must contain at least one number"
+    }
+    if ($Password -notmatch '[^a-zA-Z0-9]') {
+        return "Password must contain at least one special character"
+    }
+    return $null
+}
+
+$passwordError = Test-SqlPasswordComplexity -Password $sqlPassword
+if ($passwordError) {
+    Write-Host "   ERROR: $passwordError" -ForegroundColor Red
+    Write-Host "   Azure SQL requires: 12+ chars, uppercase, lowercase, number, special character" -ForegroundColor Yellow
+    exit 1
+}
+
 # DAB Client ID
 $dabClientId = $envConfig['DAB_CLIENT_ID']
 if (-not $dabClientId) {
@@ -229,6 +258,30 @@ if ($HttpScaleThreshold -eq -1) {
 }
 
 # =============================================================================
+# Pre-Flight Validation
+# =============================================================================
+
+Write-Step "Validating prerequisites..."
+
+# Check Azure CLI version
+$azVersion = az version --output json 2>$null | ConvertFrom-Json
+if ($azVersion) {
+    Write-Info "Azure CLI: $($azVersion.'azure-cli')"
+} else {
+    Write-Host "   ERROR: Azure CLI not found. Please install: https://docs.microsoft.com/cli/azure/install-azure-cli" -ForegroundColor Red
+    exit 1
+}
+
+# Check Bicep CLI
+$bicepVersion = az bicep version 2>$null
+if ($bicepVersion) {
+    Write-Info "Bicep: $bicepVersion"
+} else {
+    Write-Warn "Bicep CLI not found. Installing..."
+    az bicep install
+}
+
+# =============================================================================
 # Azure Login Check
 # =============================================================================
 
@@ -243,6 +296,30 @@ Write-Info "Subscription: $($account.name)"
 
 # Get tenant ID from current session
 $tenantId = $account.tenantId
+
+# =============================================================================
+# Check Required Azure Providers
+# =============================================================================
+
+Write-Step "Checking Azure resource providers..."
+$requiredProviders = @(
+    'Microsoft.App',
+    'Microsoft.ContainerRegistry',
+    'Microsoft.Sql',
+    'Microsoft.Storage',
+    'Microsoft.Cdn',
+    'Microsoft.Insights',
+    'Microsoft.OperationalInsights'
+)
+
+foreach ($provider in $requiredProviders) {
+    $status = az provider show --namespace $provider --query "registrationState" -o tsv 2>$null
+    if ($status -ne 'Registered') {
+        Write-Warn "Registering provider: $provider"
+        az provider register --namespace $provider --wait 2>$null
+    }
+}
+Write-Success "All required providers registered"
 
 # =============================================================================
 # Create Resource Group

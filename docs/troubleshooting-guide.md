@@ -240,8 +240,9 @@ az containerapp create \
 - Login fails with redirect error
 - Error mentions "reply URL" or "redirect URI"
 
-![AADSTS50011 Error](https://learn.microsoft.com/en-us/troubleshoot/azure/active-directory/media/error-code-aadsts50011-redirect-uri-mismatch/aadsts50011-error.png)
-*Source: [Microsoft Learn - AADSTS50011](https://learn.microsoft.com/en-us/troubleshoot/azure/active-directory/error-code-aadsts50011-redirect-uri-mismatch)*
+> **Error Message:** "AADSTS50011: The reply URL specified in the request does not match the reply URLs configured for the application."
+>
+> *Reference: [Microsoft Learn - AADSTS50011](https://learn.microsoft.com/en-us/troubleshoot/azure/active-directory/error-code-aadsts50011-redirect-uri-mismatch)*
 
 #### Solution
 

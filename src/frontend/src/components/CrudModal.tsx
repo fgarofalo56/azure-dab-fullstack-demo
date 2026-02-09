@@ -1,13 +1,35 @@
 /**
  * CRUD Modal Component
  * Modal dialog for Create, Read, Update, Delete operations
+ *
+ * Accessibility features:
+ * - role="dialog" with aria-modal="true"
+ * - aria-labelledby for dialog title
+ * - Focus trap within modal
+ * - Escape key to close
+ * - Auto-focus on first input
+ * - Return focus on close
+ * - aria-live for loading states
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 
 export type CrudMode = 'create' | 'view' | 'edit' | 'delete';
 
-interface Field {
+// Validation rule types
+interface ValidationRules {
+  min?: number;            // Minimum value for numbers, minimum length for strings
+  max?: number;            // Maximum value for numbers, maximum length for strings
+  minLength?: number;      // Minimum string length
+  maxLength?: number;      // Maximum string length
+  pattern?: RegExp;        // Regex pattern to match
+  patternMessage?: string; // Custom message for pattern validation
+  minDate?: string;        // Minimum date (ISO string)
+  maxDate?: string;        // Maximum date (ISO string)
+  custom?: (value: unknown, formData: Record<string, unknown>) => string | null; // Custom validation function
+}
+
+export interface Field {
   name: string;
   label: string;
   type: 'text' | 'number' | 'date' | 'select' | 'boolean' | 'textarea';
@@ -15,6 +37,7 @@ interface Field {
   readOnly?: boolean;
   options?: { value: string | number; label: string }[];
   placeholder?: string;
+  validation?: ValidationRules; // Field-level validation rules
 }
 
 interface CrudModalProps<T> {
@@ -43,6 +66,84 @@ export function CrudModal<T extends object>({
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Accessibility refs and IDs
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const firstFocusableRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+
+  // Store the previously focused element when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement;
+    }
+  }, [isOpen]);
+
+  // Return focus when modal closes
+  useEffect(() => {
+    if (!isOpen && previousActiveElement.current) {
+      previousActiveElement.current.focus();
+    }
+  }, [isOpen]);
+
+  // Focus trap: keep focus within modal
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!isOpen || !modalRef.current) return;
+
+      // Handle Escape key
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      // Handle Tab for focus trap
+      if (e.key === 'Tab') {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    },
+    [isOpen, onClose]
+  );
+
+  // Add/remove keyboard event listener
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Auto-focus first input when modal opens
+  useEffect(() => {
+    if (isOpen && modalRef.current) {
+      // Small delay to ensure DOM is ready
+      requestAnimationFrame(() => {
+        const firstInput = modalRef.current?.querySelector<HTMLElement>(
+          'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput) {
+          firstInput.focus();
+          firstFocusableRef.current = firstInput;
+        } else {
+          // Fallback to close button if no inputs
+          const closeButton = modalRef.current?.querySelector<HTMLElement>('button');
+          closeButton?.focus();
+        }
+      });
+    }
+  }, [isOpen, mode]);
+
   useEffect(() => {
     if (data && (mode === 'edit' || mode === 'view')) {
       setFormData(data as Record<string, unknown>);
@@ -69,8 +170,102 @@ export function CrudModal<T extends object>({
     const newErrors: Record<string, string> = {};
 
     fields.forEach((field) => {
-      if (field.required && !formData[field.name]) {
+      const value = formData[field.name];
+      const rules = field.validation;
+
+      // Required validation
+      if (field.required && (value === undefined || value === null || value === '')) {
         newErrors[field.name] = `${field.label} is required`;
+        return; // Skip other validations if required fails
+      }
+
+      // Skip further validation if value is empty and not required
+      if (value === undefined || value === null || value === '') {
+        return;
+      }
+
+      // Type-specific validation
+      if (field.type === 'number') {
+        const numValue = typeof value === 'number' ? value : Number(value);
+
+        if (isNaN(numValue)) {
+          newErrors[field.name] = `${field.label} must be a valid number`;
+          return;
+        }
+
+        // Min/max value for numbers
+        if (rules?.min !== undefined && numValue < rules.min) {
+          newErrors[field.name] = `${field.label} must be at least ${rules.min}`;
+          return;
+        }
+        if (rules?.max !== undefined && numValue > rules.max) {
+          newErrors[field.name] = `${field.label} must be at most ${rules.max}`;
+          return;
+        }
+      }
+
+      if (field.type === 'text' || field.type === 'textarea') {
+        const strValue = String(value);
+
+        // String length validation
+        if (rules?.minLength !== undefined && strValue.length < rules.minLength) {
+          newErrors[field.name] = `${field.label} must be at least ${rules.minLength} characters`;
+          return;
+        }
+        if (rules?.maxLength !== undefined && strValue.length > rules.maxLength) {
+          newErrors[field.name] = `${field.label} must be at most ${rules.maxLength} characters`;
+          return;
+        }
+
+        // Legacy min/max for string length
+        if (rules?.min !== undefined && strValue.length < rules.min) {
+          newErrors[field.name] = `${field.label} must be at least ${rules.min} characters`;
+          return;
+        }
+        if (rules?.max !== undefined && strValue.length > rules.max) {
+          newErrors[field.name] = `${field.label} must be at most ${rules.max} characters`;
+          return;
+        }
+
+        // Pattern validation
+        if (rules?.pattern && !rules.pattern.test(strValue)) {
+          newErrors[field.name] = rules.patternMessage || `${field.label} has an invalid format`;
+          return;
+        }
+      }
+
+      if (field.type === 'date') {
+        const dateValue = new Date(String(value));
+
+        if (isNaN(dateValue.getTime())) {
+          newErrors[field.name] = `${field.label} must be a valid date`;
+          return;
+        }
+
+        // Date range validation
+        if (rules?.minDate) {
+          const minDate = new Date(rules.minDate);
+          if (dateValue < minDate) {
+            newErrors[field.name] = `${field.label} must be on or after ${minDate.toLocaleDateString()}`;
+            return;
+          }
+        }
+        if (rules?.maxDate) {
+          const maxDate = new Date(rules.maxDate);
+          if (dateValue > maxDate) {
+            newErrors[field.name] = `${field.label} must be on or before ${maxDate.toLocaleDateString()}`;
+            return;
+          }
+        }
+      }
+
+      // Custom validation (runs last, can access all form data)
+      if (rules?.custom) {
+        const customError = rules.custom(value, formData);
+        if (customError) {
+          newErrors[field.name] = customError;
+          return;
+        }
       }
     });
 
@@ -130,25 +325,39 @@ export function CrudModal<T extends object>({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      role="presentation"
+      onClick={(e) => {
+        // Close when clicking backdrop (outside modal)
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+      >
         {/* Header */}
         <div className={`flex items-center justify-between px-6 py-4 bg-gradient-to-r ${getModeColors()} rounded-t-xl`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center" aria-hidden="true">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {getModeIcon()}
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-white capitalize">
+            <h2 id={titleId} className="text-xl font-bold text-white capitalize">
               {mode} {title}
             </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -157,8 +366,8 @@ export function CrudModal<T extends object>({
         {/* Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           {mode === 'delete' ? (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="text-center py-8" role="alert" aria-live="assertive">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4" aria-hidden="true">
                 <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -190,6 +399,9 @@ export function CrudModal<T extends object>({
                       disabled={isReadOnly || field.readOnly}
                       placeholder={field.placeholder}
                       rows={3}
+                      aria-invalid={!!errors[field.name]}
+                      aria-describedby={errors[field.name] ? `${field.name}-error` : undefined}
+                      aria-required={field.required}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[field.name] ? 'border-red-500' : 'border-slate-300'
                       } ${isReadOnly || field.readOnly ? 'bg-slate-100' : ''}`}
@@ -200,6 +412,9 @@ export function CrudModal<T extends object>({
                       value={(formData[field.name] as string) || ''}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       disabled={isReadOnly || field.readOnly}
+                      aria-invalid={!!errors[field.name]}
+                      aria-describedby={errors[field.name] ? `${field.name}-error` : undefined}
+                      aria-required={field.required}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[field.name] ? 'border-red-500' : 'border-slate-300'
                       } ${isReadOnly || field.readOnly ? 'bg-slate-100' : ''}`}
@@ -219,6 +434,7 @@ export function CrudModal<T extends object>({
                         checked={(formData[field.name] as boolean) || false}
                         onChange={(e) => handleChange(field.name, e.target.checked)}
                         disabled={isReadOnly || field.readOnly}
+                        aria-describedby={errors[field.name] ? `${field.name}-error` : undefined}
                         className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                       />
                       <span className="text-sm text-slate-600">Yes</span>
@@ -236,6 +452,9 @@ export function CrudModal<T extends object>({
                       }
                       disabled={isReadOnly || field.readOnly}
                       placeholder={field.placeholder}
+                      aria-invalid={!!errors[field.name]}
+                      aria-describedby={errors[field.name] ? `${field.name}-error` : undefined}
+                      aria-required={field.required}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[field.name] ? 'border-red-500' : 'border-slate-300'
                       } ${isReadOnly || field.readOnly ? 'bg-slate-100' : ''}`}
@@ -243,7 +462,9 @@ export function CrudModal<T extends object>({
                   )}
 
                   {errors[field.name] && (
-                    <p className="mt-1 text-sm text-red-500">{errors[field.name]}</p>
+                    <p id={`${field.name}-error`} className="mt-1 text-sm text-red-500" role="alert">
+                      {errors[field.name]}
+                    </p>
                   )}
                 </div>
               ))}
@@ -265,6 +486,7 @@ export function CrudModal<T extends object>({
             <button
               onClick={handleSubmit}
               disabled={isLoading}
+              aria-busy={isLoading}
               className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center gap-2 ${
                 mode === 'delete'
                   ? 'bg-red-600 hover:bg-red-700'
@@ -272,9 +494,20 @@ export function CrudModal<T extends object>({
               } disabled:opacity-50`}
             >
               {isLoading && (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div
+                  className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                  aria-hidden="true"
+                />
               )}
-              {mode === 'delete' ? 'Delete' : mode === 'create' ? 'Create' : 'Save'}
+              <span aria-live="polite">
+                {isLoading
+                  ? 'Processing...'
+                  : mode === 'delete'
+                    ? 'Delete'
+                    : mode === 'create'
+                      ? 'Create'
+                      : 'Save'}
+              </span>
             </button>
           )}
         </div>

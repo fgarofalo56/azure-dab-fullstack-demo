@@ -14,13 +14,14 @@ ENV DATABASE_CONNECTION_STRING=""
 ENV AZURE_AD_CLIENT_ID=""
 ENV AZURE_AD_TENANT_ID=""
 ENV ASPNETCORE_ENVIRONMENT="Production"
+ENV ALLOWED_ORIGINS="https://localhost:3000"
 
 # Expose DAB default port
 EXPOSE 5000
 
-# Health check
+# Health check using curl (available in .NET base image)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1
+    CMD curl --fail http://localhost:5000/ || exit 1
 
 # Start DAB with configuration file
 ENTRYPOINT ["dotnet", "Azure.DataApiBuilder.Service.dll", "--ConfigFileName", "/App/dab-config.json"]

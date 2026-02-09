@@ -18,7 +18,7 @@
 
 This is a demonstration project showcasing Azure Data API Builder deployed as a containerized solution with:
 
-- **Backend**: Data API Builder in Azure Container Instances
+- **Backend**: Data API Builder in Azure Container Apps
 - **Frontend**: React + TypeScript consuming DAB REST/GraphQL APIs
 - **Database**: Azure SQL Database
 - **Auth**: Microsoft Entra ID (tenant-only access)
@@ -32,7 +32,7 @@ This is a demonstration project showcasing Azure Data API Builder deployed as a 
 | Backend | Azure Data API Builder |
 | Database | Azure SQL Database |
 | Auth | Microsoft Entra ID |
-| Hosting | Azure Container Instances |
+| Hosting | Azure Container Apps |
 | Registry | Azure Container Registry |
 | Storage | Azure File Share |
 | IaC | Azure Bicep |

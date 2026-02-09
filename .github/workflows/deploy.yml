@@ -2,13 +2,13 @@ name: Build and Deploy to Azure Container Apps
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'src/**'
       - 'infrastructure/**'
       - '.github/workflows/deploy.yml'
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
       - 'src/**'
       - 'infrastructure/**'

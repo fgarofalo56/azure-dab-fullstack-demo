@@ -1,9 +1,17 @@
 /**
  * GraphQL Explorer Component
  * Interactive GraphQL query interface for demonstrating DAB GraphQL capabilities
+ *
+ * Accessibility features:
+ * - role="dialog" with aria-modal="true"
+ * - aria-labelledby for dialog title
+ * - Focus trap within modal
+ * - Escape key to close
+ * - Return focus on close
+ * - Proper form labeling
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { useApiToken } from '../hooks/useApiToken';
 
 // Derive GraphQL URL from API base URL
@@ -144,6 +152,62 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<keyof typeof SAMPLE_QUERIES>('categories');
 
+  // Accessibility
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const queryLabelId = useId();
+  const resultLabelId = useId();
+
+  // Store previously focused element
+  useEffect(() => {
+    previousActiveElement.current = document.activeElement as HTMLElement;
+    return () => {
+      previousActiveElement.current?.focus();
+    };
+  }, []);
+
+  // Escape key handler and focus trap
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+
+      // Focus trap
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey && document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Auto-focus first interactive element
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const firstButton = modalRef.current?.querySelector<HTMLElement>('button');
+      firstButton?.focus();
+    });
+  }, []);
+
   const handleExecute = async () => {
     setIsLoading(true);
     setError(null);
@@ -182,36 +246,51 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-purple-800 to-purple-600 rounded-t-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center" aria-hidden="true">
               <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">GraphQL Explorer</h2>
+              <h2 id={titleId} className="text-xl font-bold text-white">GraphQL Explorer</h2>
               <p className="text-purple-200 text-sm">Query DOT data with GraphQL</p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close GraphQL Explorer"
             className="text-white/80 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Sample query tabs */}
-        <div className="flex gap-2 px-6 py-3 bg-slate-50 border-b overflow-x-auto">
+        <div className="flex gap-2 px-6 py-3 bg-slate-50 border-b overflow-x-auto" role="tablist" aria-label="Sample GraphQL queries">
           {Object.keys(SAMPLE_QUERIES).map((key) => (
             <button
               key={key}
+              role="tab"
+              aria-selected={activeTab === key}
               onClick={() => handleSelectSample(key as keyof typeof SAMPLE_QUERIES)}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 activeTab === key
@@ -229,20 +308,21 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
           {/* Query editor */}
           <div className="flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-3">
-              <label className="text-base font-medium text-slate-700">Query</label>
+              <label id={queryLabelId} className="text-base font-medium text-slate-700">Query</label>
               <button
                 onClick={handleExecute}
                 disabled={isLoading}
+                aria-busy={isLoading}
                 className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors font-medium"
               >
                 {isLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Executing...
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
+                    <span aria-live="polite">Executing...</span>
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -254,6 +334,7 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-labelledby={queryLabelId}
               className="flex-1 p-4 font-mono text-base bg-slate-900 text-green-400 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 leading-relaxed"
               placeholder="Enter your GraphQL query..."
             />
@@ -261,14 +342,16 @@ export function GraphQLExplorer({ onClose }: GraphQLExplorerProps) {
 
           {/* Result viewer */}
           <div className="flex flex-col min-h-0">
-            <label className="text-base font-medium text-slate-700 mb-3">Result</label>
+            <span id={resultLabelId} className="text-base font-medium text-slate-700 mb-3">Result</span>
             <div className="flex-1 relative min-h-0">
               {error && (
-                <div className="absolute top-0 left-0 right-0 bg-red-50 border border-red-200 rounded-t-lg p-3 text-red-700 text-sm z-10">
+                <div role="alert" className="absolute top-0 left-0 right-0 bg-red-50 border border-red-200 rounded-t-lg p-3 text-red-700 text-sm z-10">
                   <strong>Error:</strong> {error}
                 </div>
               )}
               <pre
+                aria-labelledby={resultLabelId}
+                aria-live="polite"
                 className={`h-full p-4 font-mono text-base bg-slate-100 rounded-lg overflow-auto leading-relaxed ${
                   error ? 'pt-16' : ''
                 }`}
