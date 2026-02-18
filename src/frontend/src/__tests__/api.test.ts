@@ -113,6 +113,17 @@ describe('formatDate', () => {
   });
 });
 
+// Helper to create a mock response with proper headers
+function mockJsonResponse(data: unknown, ok = true, status = 200) {
+  return {
+    ok,
+    status,
+    headers: new Headers({ 'content-type': 'application/json' }),
+    json: () => Promise.resolve(data),
+    text: () => Promise.resolve(JSON.stringify(data)),
+  };
+}
+
 describe('fetchFromApi', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -120,10 +131,9 @@ describe('fetchFromApi', () => {
 
   it('makes GET request with authorization header', async () => {
     const mockResponse = { value: [{ id: 1, name: 'Test' }] };
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    });
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockJsonResponse(mockResponse)
+    );
 
     const result = await fetchFromApi('/Category', 'test-token');
 
@@ -151,12 +161,23 @@ describe('fetchFromApi', () => {
     );
   });
 
-  it('sends POST request with body', async () => {
-    const mockResponse = { value: [{ id: 1 }] };
+  it('throws error on non-JSON response', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve(mockResponse),
+      headers: new Headers({ 'content-type': 'text/html' }),
+      json: () => Promise.resolve({}),
     });
+
+    await expect(fetchFromApi('/Category', 'test-token')).rejects.toThrow(
+      'API returned non-JSON response'
+    );
+  });
+
+  it('sends POST request with body', async () => {
+    const mockResponse = { value: [{ id: 1 }] };
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockJsonResponse(mockResponse)
+    );
 
     await fetchFromApi(
       '/Category',
@@ -181,10 +202,9 @@ describe('executeGraphQL', () => {
 
   it('sends GraphQL query', async () => {
     const mockResponse = { data: { categories: { items: [] } } };
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    });
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockJsonResponse(mockResponse)
+    );
 
     const query = '{ categories { items { id name } } }';
     const result = await executeGraphQL(query, {}, 'test-token');
@@ -203,13 +223,24 @@ describe('executeGraphQL', () => {
     const mockResponse = {
       errors: [{ message: 'Field not found' }],
     };
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    });
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      mockJsonResponse(mockResponse)
+    );
 
     await expect(
       executeGraphQL('{ invalid }', {}, 'test-token')
     ).rejects.toThrow('GraphQL Error: Field not found');
+  });
+
+  it('throws error on non-JSON response', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      json: () => Promise.resolve({}),
+    });
+
+    await expect(
+      executeGraphQL('{ test }', {}, 'test-token')
+    ).rejects.toThrow('GraphQL endpoint returned non-JSON response');
   });
 });

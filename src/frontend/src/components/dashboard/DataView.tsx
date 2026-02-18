@@ -57,6 +57,13 @@ export function DataView({ category, onBack }: DataViewProps) {
       });
 
       if (!res.ok) throw new Error('Failed to fetch states');
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          'API returned an HTML page instead of data. The API backend may be unreachable. ' +
+          'Please verify the DAB service is running and requests are being routed correctly.'
+        );
+      }
       const data: ApiResponse<State> = await res.json();
       return data.value;
     },

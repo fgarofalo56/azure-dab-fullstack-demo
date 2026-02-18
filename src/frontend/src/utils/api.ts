@@ -158,6 +158,14 @@ export async function fetchFromApi<T>(
     throw new Error(`API Error (${response.status}): ${errorText}`);
   }
 
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      'API returned non-JSON response. The API backend may be unreachable. ' +
+      'Please verify the API service is running and properly configured.'
+    );
+  }
+
   return response.json();
 }
 
@@ -182,6 +190,14 @@ export async function executeGraphQL<T>(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`GraphQL Error (${response.status}): ${errorText}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      'GraphQL endpoint returned non-JSON response. The API backend may be unreachable. ' +
+      'Please verify the API service is running and properly configured.'
+    );
   }
 
   const result = await response.json();

@@ -538,8 +538,14 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2024-03-01' = if (dep
             cpu: json('0.5')
             memory: '1Gi'
           }
+          env: [
+            {
+              name: 'DAB_BACKEND_URL'
+              value: 'https://${dabContainerApp.properties.configuration.ingress.fqdn}'
+            }
+          ]
           // Note: VITE_* variables are baked into the frontend at Docker build time (see Dockerfile).
-          // The frontend uses relative URLs (/api, /graphql) by default, which work with Front Door routing.
+          // The frontend's Nginx reverse proxy forwards /api and /graphql to DAB_BACKEND_URL at runtime.
           probes: [
             {
               type: 'Liveness'

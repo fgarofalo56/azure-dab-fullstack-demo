@@ -10,10 +10,6 @@ import { useMsal } from '@azure/msal-react';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { loginRequest } from '../config/authConfig';
 
-interface TokenResult {
-  accessToken: string;
-}
-
 /**
  * Hook that returns a function to acquire an access token.
  *

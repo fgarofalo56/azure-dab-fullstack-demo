@@ -191,6 +191,7 @@ describe('BaseDataTable', () => {
     // Mock successful API response
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: () => Promise.resolve({ value: mockData }),
     });
   });
@@ -291,6 +292,7 @@ describe('BaseDataTable', () => {
   it('shows empty state when no data', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: () => Promise.resolve({ value: [] }),
     });
 

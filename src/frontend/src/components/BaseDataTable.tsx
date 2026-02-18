@@ -207,6 +207,13 @@ export function BaseDataTable<T extends { Id: number }>({
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) throw new Error(`Failed to fetch ${queryKey}`);
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          'API returned an HTML page instead of data. The API backend may be unreachable. ' +
+          'Please verify the DAB service is running and requests are being routed correctly.'
+        );
+      }
       return res.json() as Promise<ApiResponse<T>>;
     },
   });
