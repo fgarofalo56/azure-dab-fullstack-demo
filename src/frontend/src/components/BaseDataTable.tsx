@@ -190,7 +190,7 @@ export function BaseDataTable<T extends { Id: number }>({
   // Build OData query string
   const buildQuery = () => {
     const params: string[] = [];
-    if (queryOptions.top) params.push(`$top=${queryOptions.top}`);
+    if (queryOptions.top) params.push(`$first=${queryOptions.top}`);
     if (queryOptions.orderBy) params.push(`$orderby=${queryOptions.orderBy}`);
     if (queryOptions.filter) params.push(`$filter=${queryOptions.filter}`);
     return params.length > 0 ? `?${params.join('&')}` : '';
