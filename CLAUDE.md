@@ -390,26 +390,22 @@ This is a demonstration project showcasing Azure Data API Builder deployed as a 
 ```bash
 # Frontend development
 
-> **Note:** This project previously used Archon v1 for task tracking. Archon v1 was archived by its author in April 2026. Historical Archon task records were exported to `.claude/migrated-archon-tasks.md` at migration time. Use TodoWrite + GitHub Issues going forward (see Rule 0).
 cd src/frontend
 npm install
 npm run dev
 
 # DAB local development
 
-> **Note:** This project previously used Archon v1 for task tracking. Archon v1 was archived by its author in April 2026. Historical Archon task records were exported to `.claude/migrated-archon-tasks.md` at migration time. Use TodoWrite + GitHub Issues going forward (see Rule 0).
 cd src/dab-config
 dab start
 
 # Deploy infrastructure
 
-> **Note:** This project previously used Archon v1 for task tracking. Archon v1 was archived by its author in April 2026. Historical Archon task records were exported to `.claude/migrated-archon-tasks.md` at migration time. Use TodoWrite + GitHub Issues going forward (see Rule 0).
 cd infrastructure/scripts
 ./deploy.ps1 -ResourceGroupName "rg-dab-demo"
 
 # Build containers
 
-> **Note:** This project previously used Archon v1 for task tracking. Archon v1 was archived by its author in April 2026. Historical Archon task records were exported to `.claude/migrated-archon-tasks.md` at migration time. Use TodoWrite + GitHub Issues going forward (see Rule 0).
 ./build-push-dab.ps1
 ./build-push-frontend.ps1
 ```
