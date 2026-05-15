@@ -52,6 +52,10 @@ tmpclaude-*
 # Playwright MCP
 .playwright-mcp/
 
+# E2E test artifacts
+e2e-screenshots/
+e2e-test-report.md
+
 # Deployment outputs (may contain sensitive info)
 deployment-outputs.json
 

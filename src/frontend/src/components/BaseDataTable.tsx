@@ -186,6 +186,7 @@ export function BaseDataTable<T extends { Id: number }>({
   const [modalMode, setModalMode] = useState<CrudMode>('view');
   const [selectedRecord, setSelectedRecord] = useState<T | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [operationError, setOperationError] = useState<string | null>(null);
 
   // Build OData query string
   const buildQuery = () => {
@@ -250,6 +251,7 @@ export function BaseDataTable<T extends { Id: number }>({
 
   const handleSave = async (formData: Partial<T>) => {
     setIsSubmitting(true);
+    setOperationError(null);
     try {
       const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -265,7 +267,7 @@ export function BaseDataTable<T extends { Id: number }>({
       setShowModal(false);
     } catch (err) {
       console.error('Save error:', err);
-      alert('Failed to save record. Please try again.');
+      setOperationError(err instanceof Error ? err.message : 'Failed to save record. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -274,6 +276,7 @@ export function BaseDataTable<T extends { Id: number }>({
   const handleConfirmDelete = async () => {
     if (!selectedRecord) return;
     setIsSubmitting(true);
+    setOperationError(null);
     try {
       const accessToken = await getToken();
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -283,7 +286,7 @@ export function BaseDataTable<T extends { Id: number }>({
       setShowModal(false);
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Failed to delete record. Please try again.');
+      setOperationError(err instanceof Error ? err.message : 'Failed to delete record. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -338,6 +341,20 @@ export function BaseDataTable<T extends { Id: number }>({
 
   return (
     <div className="space-y-4">
+      {operationError && (
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3" role="alert">
+          <p className="text-red-700 text-sm">{operationError}</p>
+          <button
+            onClick={() => setOperationError(null)}
+            className="text-red-400 hover:text-red-600 ml-4"
+            aria-label="Dismiss error"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       <div className="flex justify-end">
         <CreateButton onClick={handleCreate} label={createButtonLabel} />
       </div>

@@ -202,8 +202,11 @@ export async function executeGraphQL<T>(
 
   const result = await response.json();
 
-  if (result.errors && result.errors.length > 0) {
-    throw new Error(`GraphQL Error: ${result.errors.map((e: { message: string }) => e.message).join(', ')}`);
+  if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+    const messages = result.errors
+      .filter((e: unknown): e is { message: string } => typeof e === 'object' && e !== null && 'message' in e)
+      .map((e: { message: string }) => e.message);
+    throw new Error(`GraphQL Error: ${messages.join(', ') || 'Unknown error'}`);
   }
 
   return result.data;

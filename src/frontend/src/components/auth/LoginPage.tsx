@@ -9,12 +9,21 @@ interface LoginPageProps {
   onLogin: () => void;
 }
 
+const colorClasses = {
+  blue: { bg: 'bg-blue-800/40', border: 'border-blue-500/30', text: 'text-blue-300' },
+  emerald: { bg: 'bg-emerald-800/40', border: 'border-emerald-500/30', text: 'text-emerald-300' },
+  purple: { bg: 'bg-purple-800/40', border: 'border-purple-500/30', text: 'text-purple-300' },
+  red: { bg: 'bg-red-800/40', border: 'border-red-500/30', text: 'text-red-300' },
+} as const;
+
+type CategoryColor = keyof typeof colorClasses;
+
 export function LoginPage({ onLogin }: LoginPageProps) {
   const categories = [
-    { icon: 'train', name: 'Railroads', source: 'FRA Safety Data', color: 'blue' },
-    { icon: 'bridge', name: 'Bridges', source: 'National Inventory', color: 'emerald' },
-    { icon: 'bus', name: 'Transit', source: 'NTD Metrics', color: 'purple' },
-    { icon: 'car', name: 'Automobiles', source: 'FARS Data', color: 'red' },
+    { icon: 'train', name: 'Railroads', source: 'FRA Safety Data', color: 'blue' as CategoryColor },
+    { icon: 'bridge', name: 'Bridges', source: 'National Inventory', color: 'emerald' as CategoryColor },
+    { icon: 'bus', name: 'Transit', source: 'NTD Metrics', color: 'purple' as CategoryColor },
+    { icon: 'car', name: 'Automobiles', source: 'FARS Data', color: 'red' as CategoryColor },
   ];
 
   return (
@@ -38,18 +47,21 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
           {/* Category Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            {categories.map((cat) => (
-              <div
-                key={cat.name}
-                className={`bg-${cat.color}-800/40 backdrop-blur-sm rounded-xl p-6 text-center border border-${cat.color}-500/30 transition-transform hover:scale-105`}
-              >
-                <div className={`text-${cat.color}-300 flex justify-center mb-3`}>
-                  {getIcon(cat.icon, 'w-10 h-10')}
+            {categories.map((cat) => {
+              const colors = colorClasses[cat.color];
+              return (
+                <div
+                  key={cat.name}
+                  className={`${colors.bg} backdrop-blur-sm rounded-xl p-6 text-center border ${colors.border} transition-transform hover:scale-105`}
+                >
+                  <div className={`${colors.text} flex justify-center mb-3`}>
+                    {getIcon(cat.icon, 'w-10 h-10')}
+                  </div>
+                  <p className="text-white font-semibold">{cat.name}</p>
+                  <p className={`${colors.text} text-sm`}>{cat.source}</p>
                 </div>
-                <p className="text-white font-semibold">{cat.name}</p>
-                <p className={`text-${cat.color}-300 text-sm`}>{cat.source}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Login Button */}
